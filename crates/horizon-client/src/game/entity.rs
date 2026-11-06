@@ -1021,10 +1021,10 @@ impl Entity for Mob {
         self.kind.step_height as f32
     }
     fn is_alive(&self) -> bool {
-        !self.removed && self.alive()
+        !self.is_removed() && self.alive()
     }
     fn is_removed(&self) -> bool {
-        self.removed
+        self.is_removed()
     }
     fn is_living(&self) -> bool {
         true

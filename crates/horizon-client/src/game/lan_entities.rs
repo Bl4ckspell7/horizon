@@ -163,7 +163,7 @@ impl Game<'_> {
         for &(vehicle, guest) in guests {
             riding.add(vehicle as i32, guest);
         }
-        for m in self.mobs.iter().filter(|m| !m.removed) {
+        for m in self.mobs.iter().filter(|m| !m.is_removed()) {
             if let Some(vehicle) = m.extra.mount {
                 riding.add(vehicle as i32, m.id as i32);
             }
@@ -541,7 +541,7 @@ impl Game<'_> {
         let knots: Vec<[i32; 3]> = self
             .mobs
             .iter()
-            .filter(|m| !m.removed)
+            .filter(|m| !m.is_removed())
             .filter_map(|m| match m.extra.leash {
                 Some(horizon_client::mobs::leash::Holder::Knot(p)) => Some(p),
                 _ => None,

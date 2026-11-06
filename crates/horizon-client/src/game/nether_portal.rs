@@ -1016,6 +1016,7 @@ impl Game<'_> {
             if let Tag::Compound(c) = &mut tag {
                 c.remove(&"leash".into());
             }
+            self.mobs[i].set_removed(horizon_client::mobs::RemovalReason::ChangedDimension);
             let mut gone = vec![id];
             gone.extend(self.remove_mob_riders(id));
             self.mobs.retain(|m| m.id != id);
@@ -1140,6 +1141,11 @@ impl Game<'_> {
             k += 1;
         }
         tree.remove(0);
+        for m in &mut self.mobs {
+            if tree.contains(&m.id) {
+                m.set_removed(horizon_client::mobs::RemovalReason::ChangedDimension);
+            }
+        }
         self.mobs.retain(|m| !tree.contains(&m.id));
         tree
     }

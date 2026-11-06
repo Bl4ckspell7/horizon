@@ -685,10 +685,10 @@ impl Game<'_> {
         self.native_living_conversion_pre(from.id, &from_kind, kind, &mut cancel);
         if cancel {
             match self.mobs.iter_mut().find(|m| m.id == from.id) {
-                Some(kept) => kept.removed = false,
+                Some(kept) => kept.removal_reason = None,
                 None => {
                     let mut kept = from.clone();
-                    kept.removed = false;
+                    kept.removal_reason = None;
                     self.mobs.push(kept);
                 }
             }
@@ -985,7 +985,7 @@ impl Game<'_> {
         let killed: Vec<Mob> = self
             .mobs
             .iter()
-            .filter(|m| !m.alive() && !m.removed && !self.died.contains(&m.id))
+            .filter(|m| !m.alive() && !m.is_removed() && !self.died.contains(&m.id))
             .cloned()
             .collect();
         for m in killed {
@@ -1204,14 +1204,15 @@ impl Game<'_> {
                 }
                 // A killed mob's body is removed: its effects that act on
                 // death run (`LivingEntity.remove` with KILLED).
-                if !kept && !m.alive() && !m.removed && !m.extra.effects.is_empty() {
+                if !kept && !m.alive() && !m.is_removed() && !m.extra.effects.is_empty() {
                     corpses.push(m.clone());
                 }
                 horizon_client::mobs::take_mob_pushes(&mut events, from, &mut pushes);
                 // LivingEntity.tickDeath: after twenty ticks the body is removed.
-                if !kept && !m.removed && !m.alive() && m.death_time >= 20 {
+                if !kept && !m.is_removed() && !m.alive() && m.death_time >= 20 {
                     let (width, height) = (f64::from(m.width()), f64::from(m.height()));
                     gone.push((m.id, m.position, width, height));
+                    m.set_removed(horizon_client::mobs::RemovalReason::Killed);
                 }
                 if let Some(conn) = seen_guest {
                     // ShulkerBullet.finalTarget is the guest's entity: the
@@ -1237,7 +1238,7 @@ impl Game<'_> {
                     }
                 }
                 // Killed during its own tick (drowning, burning, falling...).
-                if !m.alive() && !m.removed && died.insert(m.id) {
+                if !m.alive() && !m.is_removed() && died.insert(m.id) {
                     dead.push(m.clone());
                 }
                 if !kept {
@@ -2245,14 +2246,14 @@ impl Game<'_> {
                     if let Some(m) = self
                         .mobs
                         .iter()
-                        .find(|m| m.id == target && !m.alive() && !m.removed)
+                        .find(|m| m.id == target && !m.alive() && !m.is_removed())
                         .cloned()
                     {
                         if self.died.insert(target) {
                             self.mob_died(&m);
                         }
                         if let Some(m) = self.mobs.iter_mut().find(|m| m.id == target) {
-                            m.removed = true;
+                            m.set_removed(horizon_client::mobs::RemovalReason::Killed);
                         }
                     }
                 }
@@ -5692,7 +5693,7 @@ impl Game<'_> {
             let id = self.mobs[index].id as i32;
             // Leashable.dropLeash, then discard.
             self.break_leash(id as u32, true, false);
-            self.mobs[index].removed = true;
+            self.mobs[index].set_removed(horizon_client::mobs::RemovalReason::Discarded);
             if self.creative {
                 if let Some(rest) = self.give(filled) {
                     self.spawn_item(rest, self.eye_position().unwrap_or([0.0; 3]), [0.0; 3], 40);
@@ -5934,7 +5935,7 @@ impl Game<'_> {
                     horizon_client::sound_engine::SoundEntity::new(m.id, feet, m.silent),
                     None,
                 );
-                m.removed = true;
+                m.set_removed(horizon_client::mobs::RemovalReason::Discarded);
                 let setup = SpawnSetup {
                     yaw: m.yaw,
                     persistent: true,

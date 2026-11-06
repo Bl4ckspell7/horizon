@@ -92,7 +92,7 @@ impl Game<'_> {
                 && let Some(&j) = index.get(&r)
                 && self.mobs[j].extra.mount == Some(m.id)
                 && self.mobs[j].alive()
-                && !self.mobs[j].removed
+                && !self.mobs[j].is_removed()
             {
                 riding.insert(m.id, r);
             }
@@ -104,13 +104,13 @@ impl Game<'_> {
             // Not a text display: a server's display mounts come through
             // `remote_set_passengers`, which seats them in `position_riders`.
             let valid = self.mobs[i].alive()
-                && !self.mobs[i].removed
+                && !self.mobs[i].is_removed()
                 && (boats.contains(&v)
                     || carts.contains(&v)
                     || tnts.contains(&v)
                     || index
                         .get(&v)
-                        .is_some_and(|&j| self.mobs[j].alive() && !self.mobs[j].removed));
+                        .is_some_and(|&j| self.mobs[j].alive() && !self.mobs[j].is_removed()));
             if valid {
                 riding.entry(v).or_insert(self.mobs[i].id);
             } else {
@@ -572,7 +572,7 @@ impl Game<'_> {
             if !m.persistent {
                 m.extra.trap_time += 1;
                 if m.extra.trap_time > TRAP_LIFETIME {
-                    m.removed = true;
+                    m.set_removed(horizon_client::mobs::RemovalReason::Discarded);
                     continue;
                 }
             }

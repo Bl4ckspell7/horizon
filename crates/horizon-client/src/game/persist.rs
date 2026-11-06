@@ -1534,6 +1534,11 @@ impl Game<'_> {
                 })
                 .map(|i| self.mobs[i].id)
                 .collect();
+            for m in &mut self.mobs {
+                if leaving.contains(&m.id) {
+                    m.set_removed(horizon_client::mobs::RemovalReason::UnloadedToChunk);
+                }
+            }
             self.mobs.retain(|m| {
                 let keep = !leaving.contains(&m.id);
                 if !keep {
@@ -1696,7 +1701,7 @@ impl Game<'_> {
             })
             && keys.contains(&chunk_of(m.position))
             && m.alive()
-            && !m.removed;
+            && m.should_be_saved();
         saves.then(|| (chunk_of(self.mobs[i].position), self.mob_tree_nbt(i)))
     }
     pub(super) fn save_item(

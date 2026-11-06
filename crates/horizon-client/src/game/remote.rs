@@ -826,7 +826,7 @@ impl Game<'_> {
             horizon_client::sound_engine::SoundEntityState {
                 position: [m.position.x, m.position.y, m.position.z],
                 silent: m.silent,
-                removed: m.removed,
+                removed: m.is_removed(),
             }
         });
         let dragon = self
@@ -6351,7 +6351,7 @@ impl Game<'_> {
                 player.spin_targets.extend(
                     self.mobs
                         .iter()
-                        .filter(|m| !m.removed)
+                        .filter(|m| !m.is_removed())
                         .map(|m| (m.id, m.bounds())),
                 );
             }

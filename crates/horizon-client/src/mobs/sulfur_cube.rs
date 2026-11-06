@@ -829,7 +829,7 @@ pub fn tick_fuse(m: &mut Mob, events: &mut Vec<MobEvent>) {
                 m.species(),
             ));
         }
-        m.removed = true;
+        m.set_removed(super::RemovalReason::Discarded);
     }
 }
 
@@ -1162,7 +1162,7 @@ mod tnt_rule_tests {
                     assert_eq!(m.extra.scratch[2], if no_ai { 10 } else { 7 + remaining });
                 }
                 assert!(!m.tick(w, &mut random, &mut events));
-                assert!(m.removed);
+                assert!(m.is_removed());
                 assert_eq!(
                     events
                         .iter()
@@ -1211,7 +1211,7 @@ mod tnt_rule_tests {
             set_tnt_explodes(false);
             tick_fuse(&mut m, &mut events);
             set_tnt_explodes(true);
-            assert!(m.removed);
+            assert!(m.is_removed());
         });
         if !ran {
             return; // needs the prepared 26.3 data

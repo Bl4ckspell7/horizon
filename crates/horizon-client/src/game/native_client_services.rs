@@ -95,7 +95,7 @@ impl Game<'_> {
         }
         self.mobs
             .iter()
-            .filter(|m| !m.removed)
+            .filter(|m| !m.is_removed())
             .map(|m| {
                 let b = m.bounds();
                 let (lo, hi) = (b.min_position(), b.max_position());
@@ -134,7 +134,7 @@ impl Game<'_> {
         };
         self.mobs
             .iter()
-            .filter(|m| !m.removed && ids.contains(&m.id))
+            .filter(|m| !m.is_removed() && ids.contains(&m.id))
             .map(|m| {
                 let p = m.previous.lerp(m.position, partial);
                 let at = glam::DVec3::new(p.x, p.y, p.z);
