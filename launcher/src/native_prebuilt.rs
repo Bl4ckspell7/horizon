@@ -108,16 +108,20 @@ pub fn export(
 
 /// The repository whose releases hold the prebuilt builds.
 pub const REGISTRY: &str = "horizon-rust/horizon-mods";
-/// Larger than any game build should be.
-const MAX_ARCHIVE: u64 = 1 << 30;
+/// The largest archive downloaded (horizon-mods' native-build.yml signs none larger): checked
+/// before the download and capped during it, so a bad asset costs at most this much disk and no
+/// memory before its signature is checked.
+const MAX_ARCHIVE: u64 = 512 << 20;
+/// The largest file unpacked from a checked archive.
+const MAX_UNPACKED: u64 = 1 << 30;
 
 /// Whether a build of an instance's mods first looks for a prebuilt one.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Mode {
     /// Download it when the registry has one, else compile.
-    #[default]
     Auto,
     /// Always compile on this computer.
+    #[default]
     Never,
     /// Download it, or fail: never compile.
     Only,
@@ -133,11 +137,13 @@ impl Mode {
         }
     }
 
-    /// The player's setting (`settings native-prebuilt on|off`): on unless turned off.
+    /// The player's setting (`settings native-prebuilt on|off`): off unless turned on, until the
+    /// registry's signing pipeline has been checked end to end (#11859); turning it on by default
+    /// is its own change.
     pub fn chosen(settings: &crate::backend::Settings) -> Self {
         match settings.native_prebuilt {
-            Some(false) => Self::Never,
-            _ => Self::Auto,
+            Some(true) => Self::Auto,
+            _ => Self::Never,
         }
     }
 }
@@ -203,9 +209,19 @@ pub fn check(
     use std::io::Read;
     let key = request.key();
     let name = native_build::archive(&key, &request.target);
-    let bytes = fs::read(archive).map_err(|e| format!("{}: {e}", archive.display()))?;
-    let sha = horizon_release_sign::sha256_hex(&bytes);
+    let read_error = |e: std::io::Error| format!("{}: {e}", archive.display());
+    // Hashed from disk first: nothing unsigned is read into memory.
+    let size = fs::metadata(archive).map_err(read_error)?.len();
+    if size > MAX_ARCHIVE {
+        return Err(format!("{name}: larger than {MAX_ARCHIVE} bytes"));
+    }
+    let sha = sha256_file(archive).map_err(read_error)?;
     native_build::verify(&key, &request.target, &sha, &name, signatures, keys)?;
+    // The bytes unpacked are the bytes the signature covers: hashed again once in memory.
+    let bytes = fs::read(archive).map_err(read_error)?;
+    if horizon_release_sign::sha256_hex(&bytes) != sha {
+        return Err(format!("{name} changed while it was checked."));
+    }
     let client = crate::backend::CLIENT;
     let mut files: std::collections::BTreeMap<String, Vec<u8>> = Default::default();
     let mut tar = tar::Archive::new(flate2::read::GzDecoder::new(bytes.as_slice()));
@@ -222,7 +238,7 @@ pub fn check(
         }
         let mut data = Vec::new();
         (&mut entry)
-            .take(MAX_ARCHIVE)
+            .take(MAX_UNPACKED)
             .read_to_end(&mut data)
             .map_err(|e| e.to_string())?;
         files.insert(path, data);
@@ -267,7 +283,16 @@ pub fn check(
     Ok(Unpacked { binary, about })
 }
 
-/// Fetches `url` into `to`, at most [`MAX_ARCHIVE`] bytes; None when there is no such file.
+/// The SHA-256 of the file at `path`, read in pieces.
+fn sha256_file(path: &Path) -> std::io::Result<String> {
+    use sha2::{Digest, Sha256};
+    let mut hasher = Sha256::new();
+    std::io::copy(&mut fs::File::open(path)?, &mut hasher)?;
+    Ok(format!("{:x}", hasher.finalize()))
+}
+
+/// Streams `url` to the file `to`, at most [`MAX_ARCHIVE`] bytes (one announced as larger is
+/// refused before its body); None when there is no such file.
 fn fetch(url: &str, to: &Path, progress: &impl Fn(Step)) -> Result<Option<()>, String> {
     use std::io::{Read, Write};
     let response = match crate::backend::agent(url).get(url).call() {
@@ -278,6 +303,9 @@ fn fetch(url: &str, to: &Path, progress: &impl Fn(Step)) -> Result<Option<()>, S
     let total: Option<u64> = response
         .header("Content-Length")
         .and_then(|l| l.parse().ok());
+    if total.is_some_and(|t| t > MAX_ARCHIVE) {
+        return Err(format!("{url}: larger than {MAX_ARCHIVE} bytes"));
+    }
     let mut reader = response.into_reader().take(MAX_ARCHIVE);
     let mut file = fs::File::create(to).map_err(|e| format!("{}: {e}", to.display()))?;
     let (mut done, mut buffer) = (0u64, vec![0; 1 << 16]);
@@ -331,25 +359,26 @@ pub fn install(
     let archive = work.join(native_build::archive(&key, &request.target));
     progress(Step::Prebuilt(0.0));
     let url = asset_url(request, &native_build::archive(&key, &request.target));
-    let result = match fetch(&url, &archive, progress)? {
-        None => return Ok(None),
-        Some(()) => check(
+    let result = fetch(&url, &archive, progress).and_then(|fetched| {
+        if fetched.is_none() {
+            return Ok(None);
+        }
+        let mut unpacked = check(
             request,
             &archive,
             &signatures,
             &native_build::trusted_keys(),
             &work.join("unpacked"),
-        )
-        .and_then(|mut unpacked| {
-            unpacked.about["base"] = serde_json::json!(base);
-            unpacked.about["prebuilt"] = serde_json::json!({ "key": key, "url": url });
-            progress(Step::Install);
-            native_mods::install_prebuilt(base, &version, &unpacked.binary, &unpacked.about)?;
-            Ok(version)
-        }),
-    };
+        )?;
+        unpacked.about["base"] = serde_json::json!(base);
+        unpacked.about["prebuilt"] = serde_json::json!({ "key": key, "url": url });
+        progress(Step::Install);
+        native_mods::install_prebuilt(base, &version, &unpacked.binary, &unpacked.about)?;
+        Ok(Some(version))
+    });
+    // A failed or refused download leaves nothing behind either.
     let _ = fs::remove_dir_all(&work);
-    result.map(Some)
+    result
 }
 
 #[cfg(test)]
@@ -560,7 +589,25 @@ mod tests {
         bytes[last] ^= 1;
         fs::write(&archive, bytes).unwrap();
         assert!(check(&request, &archive, &signature, &[public], &into).is_err());
+        // Larger than any signed build: refused before it is read, nothing unpacked.
+        let huge = dir.join("huge");
+        fs::File::create(&archive)
+            .unwrap()
+            .set_len(MAX_ARCHIVE + 1)
+            .unwrap();
+        assert!(check(&request, &archive, &signature, &[public], &huge).is_err());
+        assert!(!huge.exists());
         fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn prebuilt_builds_are_off_until_the_player_turns_them_on() {
+        let mut settings = crate::backend::Settings::default();
+        assert_eq!(Mode::chosen(&settings), Mode::Never);
+        settings.native_prebuilt = Some(false);
+        assert_eq!(Mode::chosen(&settings), Mode::Never);
+        settings.native_prebuilt = Some(true);
+        assert_eq!(Mode::chosen(&settings), Mode::Auto);
     }
 
     #[test]

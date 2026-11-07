@@ -846,7 +846,7 @@ enum Cmd {
         profile: Option<String>,
         /// The registry's prebuilt build of the instance's mods (#11859): auto (download it when
         /// there is one, else compile), never (always compile), only (never compile). Default:
-        /// the native-prebuilt setting (on: auto)
+        /// the native-prebuilt setting (on: auto; off, the default for now: never)
         #[arg(long, value_parser = ["auto", "never", "only"])]
         prebuilt: Option<String>,
     },
@@ -1176,7 +1176,7 @@ fn settings_json(s: &backend::Settings) -> serde_json::Value {
         "background": horizon_launcher::themes::background(&backend::data_dir(), s.background.as_deref()),
         "native_profile": native_mods::Profile::chosen(s).name(),
         "native_cache_gib": s.native_cache_gib.unwrap_or(native_mods::DEFAULT_CACHE_GIB),
-        "native_prebuilt": s.native_prebuilt.unwrap_or(true),
+        "native_prebuilt": s.native_prebuilt.unwrap_or(false),
         "no_ai": backend::no_ai(),
     })
 }

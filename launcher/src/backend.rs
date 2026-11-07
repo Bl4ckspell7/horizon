@@ -4461,7 +4461,7 @@ pub struct Settings {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub native_cache_gib: Option<u64>,
     /// Whether a native build first downloads the registry's prebuilt build of the instance's
-    /// mods (`native_prebuilt::Mode::chosen`); unset is on.
+    /// mods (`native_prebuilt::Mode::chosen`); unset is off for now (#11859).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub native_prebuilt: Option<bool>,
     /// An older file's switch for the release profile, read when `native_profile` is unset.

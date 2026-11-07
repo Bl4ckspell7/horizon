@@ -118,7 +118,7 @@ Native mods (docs/native-mods.md): compile mixin bundles on the Horizon revision
 - `--allow-version-mismatch`: Build mods made for different Horizon versions together anyway, on the newest of them
 - `--ignore-pins`: Build every mod on the commit of the version the build starts from, even the mods that pin another Horizon commit (they may not apply or compile there)
 - `--profile` (performance, dev, release): The build profile: performance (the default: incremental, quick to rebuild), dev (quickest to rebuild a mod, slow game) or release (thin LTO: slowest to build, slightly faster game). Default: the native-profile setting
-- `--prebuilt` (auto, never, only): The registry's prebuilt build of the instance's mods (#11859): auto (download it when there is one, else compile), never (always compile), only (never compile). Default: the native-prebuilt setting (on: auto)
+- `--prebuilt` (auto, never, only): The registry's prebuilt build of the instance's mods (#11859): auto (download it when there is one, else compile), never (always compile), only (never compile). Default: the native-prebuilt setting (on: auto; off, the default for now: never)
 
 MCP: none: the player's switch.
 
