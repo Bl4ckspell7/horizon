@@ -10,7 +10,7 @@
 //! to sign. A set with a post-build step is never exported: the step runs on the player's game files.
 
 use crate::native_mods::{self, LeftOut, Profile, Step};
-use horizon_release_sign::native_build::{Mod, Request};
+use horizon_release_sign::native_build::{self, Mod, Request};
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -104,6 +104,252 @@ pub fn export(
         version,
         left_out,
     })
+}
+
+/// The repository whose releases hold the prebuilt builds.
+pub const REGISTRY: &str = "horizon-rust/horizon-mods";
+/// Larger than any game build should be.
+const MAX_ARCHIVE: u64 = 1 << 30;
+
+/// Whether a build of an instance's mods first looks for a prebuilt one.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Mode {
+    /// Download it when the registry has one, else compile.
+    #[default]
+    Auto,
+    /// Always compile on this computer.
+    Never,
+    /// Download it, or fail: never compile.
+    Only,
+}
+
+impl Mode {
+    pub fn parse(text: &str) -> Option<Self> {
+        match text {
+            "auto" => Some(Self::Auto),
+            "never" => Some(Self::Never),
+            "only" => Some(Self::Only),
+            _ => None,
+        }
+    }
+
+    /// The player's setting (`settings native-prebuilt on|off`): on unless turned off.
+    pub fn chosen(settings: &crate::backend::Settings) -> Self {
+        match settings.native_prebuilt {
+            Some(false) => Self::Never,
+            _ => Self::Auto,
+        }
+    }
+}
+
+/// The request for the native mods turned on in instance home `home`, built on `commit` for
+/// `target`, when every one of them is a registry file `index` lists (by its SHA-256) and none
+/// was taken down; None when one isn't (a mod from GitHub or a folder is built here).
+pub fn instance_request(
+    home: &Path,
+    target: &str,
+    commit: &str,
+    index: &horizon_mods::index::Index,
+) -> Result<Option<Request>, String> {
+    let mut files = Vec::new();
+    for path in hnmod_files(&home.join(native_mods::INSTALLED))? {
+        let bundle = horizon_mods::index::native::Bundle::read(&path)
+            .map_err(|e| format!("{}: {e}", path.display()))?;
+        if crate::browser::java::is_enabled(home, &bundle.manifest.id) {
+            files.push(path);
+        }
+    }
+    if files.is_empty() {
+        return Ok(None);
+    }
+    let request = request_for(target, commit, &files)?;
+    let listed = request.mods.iter().all(|m| {
+        index.revoked(&m.id, &m.sha256).is_none()
+            && index.project(&m.id).is_some_and(|p| {
+                p.versions.iter().any(|v| {
+                    v.version == m.version && v.file.sha256.eq_ignore_ascii_case(&m.sha256)
+                })
+            })
+    });
+    Ok(listed.then_some(request))
+}
+
+/// Where a prebuilt asset of `request` is: its release of [`REGISTRY`].
+pub fn asset_url(request: &Request, asset: &str) -> String {
+    format!(
+        "https://github.com/{REGISTRY}/releases/download/{}/{asset}",
+        native_build::release_tag(&request.base)
+    )
+}
+
+/// A checked prebuilt build, unpacked: its program and record.
+#[derive(Debug)]
+pub struct Unpacked {
+    pub binary: PathBuf,
+    pub about: serde_json::Value,
+}
+
+/// Checks a downloaded build of `request` and unpacks it into `into`: `keys` signed `archive`
+/// (`signatures` is its signature file) as this request's build; it holds only the program, its
+/// `native-mods.json` and `request.txt`; that request is this one; and its record builds no mod
+/// the request doesn't name. Anything else is refused before the program is written anywhere.
+pub fn check(
+    request: &Request,
+    archive: &Path,
+    signatures: &str,
+    keys: &[horizon_release_sign::PublicKey],
+    into: &Path,
+) -> Result<Unpacked, String> {
+    use std::io::Read;
+    let key = request.key();
+    let name = native_build::archive(&key, &request.target);
+    let bytes = fs::read(archive).map_err(|e| format!("{}: {e}", archive.display()))?;
+    let sha = horizon_release_sign::sha256_hex(&bytes);
+    native_build::verify(&key, &request.target, &sha, &name, signatures, keys)?;
+    let client = crate::backend::CLIENT;
+    let mut files: std::collections::BTreeMap<String, Vec<u8>> = Default::default();
+    let mut tar = tar::Archive::new(flate2::read::GzDecoder::new(bytes.as_slice()));
+    for entry in tar.entries().map_err(|e| e.to_string())? {
+        let mut entry = entry.map_err(|e| e.to_string())?;
+        let path = entry.path().map_err(|e| e.to_string())?.into_owned();
+        let path = path.to_string_lossy().trim_start_matches("./").to_string();
+        if entry.header().entry_type().is_dir() && path.is_empty() {
+            continue;
+        }
+        let known = [client, "native-mods.json", REQUEST_FILE].contains(&path.as_str());
+        if !known || !entry.header().entry_type().is_file() || files.contains_key(&path) {
+            return Err(format!("{name}: unexpected entry {path:?}"));
+        }
+        let mut data = Vec::new();
+        (&mut entry)
+            .take(MAX_ARCHIVE)
+            .read_to_end(&mut data)
+            .map_err(|e| e.to_string())?;
+        files.insert(path, data);
+    }
+    let text = |file: &str| {
+        files
+            .get(file)
+            .and_then(|b| std::str::from_utf8(b).ok())
+            .ok_or_else(|| format!("{name}: no {file}"))
+    };
+    if text(REQUEST_FILE)? != request.text() {
+        return Err(format!("{name} was built for another set of mods."));
+    }
+    let about: serde_json::Value =
+        serde_json::from_str(text("native-mods.json")?).map_err(|e| format!("{name}: {e}"))?;
+    let asked = |id: &str, version: &str| {
+        request
+            .mods
+            .iter()
+            .any(|m| m.id == id && m.version == version)
+    };
+    let built = about["mods"].as_array().ok_or(format!("{name}: no mods"))?;
+    let named = built.iter().all(|m| {
+        asked(
+            m["id"].as_str().unwrap_or_default(),
+            m["version"].as_str().unwrap_or_default(),
+        )
+    });
+    if built.is_empty() || !named || about["horizon"].as_str().is_none_or(|h| h.len() != 40) {
+        return Err(format!("{name}: its record doesn't match its request"));
+    }
+    let program = files.remove(client).ok_or(format!("{name}: no {client}"))?;
+    fs::create_dir_all(into).map_err(|e| e.to_string())?;
+    let binary = into.join(client);
+    fs::write(&binary, program).map_err(|e| e.to_string())?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(&binary, fs::Permissions::from_mode(0o755))
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(Unpacked { binary, about })
+}
+
+/// Fetches `url` into `to`, at most [`MAX_ARCHIVE`] bytes; None when there is no such file.
+fn fetch(url: &str, to: &Path, progress: &impl Fn(Step)) -> Result<Option<()>, String> {
+    use std::io::{Read, Write};
+    let response = match crate::backend::agent(url).get(url).call() {
+        Ok(r) => r,
+        Err(ureq::Error::Status(404, _)) => return Ok(None),
+        Err(e) => return Err(format!("{url}: {e}")),
+    };
+    let total: Option<u64> = response
+        .header("Content-Length")
+        .and_then(|l| l.parse().ok());
+    let mut reader = response.into_reader().take(MAX_ARCHIVE);
+    let mut file = fs::File::create(to).map_err(|e| format!("{}: {e}", to.display()))?;
+    let (mut done, mut buffer) = (0u64, vec![0; 1 << 16]);
+    loop {
+        let n = reader
+            .read(&mut buffer)
+            .map_err(|e| format!("{url}: {e}"))?;
+        if n == 0 {
+            return Ok(Some(()));
+        }
+        file.write_all(&buffer[..n]).map_err(|e| e.to_string())?;
+        done += n as u64;
+        if let Some(total) = total.filter(|t| *t > 0) {
+            progress(Step::Prebuilt(done as f32 / total as f32));
+        }
+    }
+}
+
+/// Installs the registry's prebuilt build of `request` on installed version `base`, as the
+/// version a build of these mods would be, after [`check`]ing it. None when the registry has
+/// no build of this set; an error when one exists but fails a check.
+pub fn install(
+    base: &str,
+    request: &Request,
+    progress: &impl Fn(Step),
+) -> Result<Option<String>, String> {
+    let key = request.key();
+    // Named by the request alone, so a set switched off and on again plays the kept build.
+    let version = format!(
+        "{}{}-{}",
+        native_mods::PREFIX,
+        &request.base[..7],
+        &key[..12]
+    );
+    if native_mods::reuse_installed(&version) {
+        return Ok(Some(version));
+    }
+    let signature = native_build::signature(&key, &request.target);
+    let signature_url = asset_url(request, &signature);
+    let signatures = match crate::backend::agent(&signature_url)
+        .get(&signature_url)
+        .call()
+    {
+        Ok(r) => r.into_string().map_err(|e| e.to_string())?,
+        Err(ureq::Error::Status(404, _)) => return Ok(None),
+        Err(e) => return Err(e.to_string()),
+    };
+    let work = native_mods::root().join("prebuilt");
+    let _ = fs::remove_dir_all(&work);
+    fs::create_dir_all(&work).map_err(|e| e.to_string())?;
+    let archive = work.join(native_build::archive(&key, &request.target));
+    progress(Step::Prebuilt(0.0));
+    let url = asset_url(request, &native_build::archive(&key, &request.target));
+    let result = match fetch(&url, &archive, progress)? {
+        None => return Ok(None),
+        Some(()) => check(
+            request,
+            &archive,
+            &signatures,
+            &native_build::trusted_keys(),
+            &work.join("unpacked"),
+        )
+        .and_then(|mut unpacked| {
+            unpacked.about["base"] = serde_json::json!(base);
+            unpacked.about["prebuilt"] = serde_json::json!({ "key": key, "url": url });
+            progress(Step::Install);
+            native_mods::install_prebuilt(base, &version, &unpacked.binary, &unpacked.about)?;
+            Ok(version)
+        }),
+    };
+    let _ = fs::remove_dir_all(&work);
+    result.map(Some)
 }
 
 #[cfg(test)]
@@ -221,5 +467,184 @@ mod tests {
         assert!(taken.unwrap_err().contains("already holds files"));
         fs::remove_dir_all(mods).unwrap();
         fs::remove_dir_all(out).unwrap();
+    }
+
+    /// A signed prebuilt archive for `request`, as native-build.yml makes and signs one.
+    fn signed_archive(
+        dir: &Path,
+        request: &Request,
+        files: &[(&str, &[u8])],
+    ) -> (PathBuf, String, horizon_release_sign::PublicKey) {
+        let (signer, _) = horizon_release_sign::SigningKey::generate().unwrap();
+        let key = request.key();
+        let name = native_build::archive(&key, &request.target);
+        let path = dir.join(&name);
+        let gz = flate2::write::GzEncoder::new(
+            fs::File::create(&path).unwrap(),
+            flate2::Compression::fast(),
+        );
+        let mut tar = tar::Builder::new(gz);
+        for (file, bytes) in files {
+            let mut header = tar::Header::new_gnu();
+            header.set_size(bytes.len() as u64);
+            header.set_mode(0o755);
+            header.set_cksum();
+            tar.append_data(&mut header, format!("./{file}"), *bytes)
+                .unwrap();
+        }
+        tar.into_inner().unwrap().finish().unwrap();
+        let sha = horizon_release_sign::sha256_hex(&fs::read(&path).unwrap());
+        let message = native_build::message(&key, &request.target, &sha, &name);
+        (path, signer.sign_bytes(&message) + "\n", signer.public())
+    }
+
+    fn minimap_request() -> Request {
+        Request::new(
+            "x86_64-unknown-linux-gnu",
+            &"6".repeat(40),
+            vec![Mod {
+                id: "minimap".into(),
+                version: "2.0.0".into(),
+                sha256: "a".repeat(64),
+            }],
+        )
+        .unwrap()
+    }
+
+    fn record(mods: &[(&str, &str)]) -> Vec<u8> {
+        let mods: Vec<_> = mods
+            .iter()
+            .map(|(id, v)| serde_json::json!({"id": id, "version": v, "sha256": "f".repeat(64)}))
+            .collect();
+        serde_json::json!({"base": "nightly-x", "horizon": "6".repeat(40), "mods": mods, "left_out": []})
+            .to_string()
+            .into_bytes()
+    }
+
+    #[test]
+    fn a_signed_build_of_this_set_unpacks_and_nothing_else_does() {
+        let dir = scratch("check");
+        let request = minimap_request();
+        let client = crate::backend::CLIENT;
+        let text = request.text();
+        let good = record(&[("minimap", "2.0.0")]);
+        let files: [(&str, &[u8]); 3] = [
+            (client, b"the game"),
+            ("native-mods.json", &good),
+            (REQUEST_FILE, text.as_bytes()),
+        ];
+        let (archive, signature, public) = signed_archive(&dir, &request, &files);
+        let into = dir.join("unpacked");
+        let unpacked = check(&request, &archive, &signature, &[public], &into).unwrap();
+        assert_eq!(fs::read(&unpacked.binary).unwrap(), b"the game");
+        assert_eq!(unpacked.about["mods"][0]["id"], "minimap");
+
+        // Signed by a key the launcher doesn't list.
+        let (stranger, _) = horizon_release_sign::SigningKey::generate().unwrap();
+        assert!(check(&request, &archive, &signature, &[stranger.public()], &into).is_err());
+        // The same archive asked for as another set.
+        let other = Request::new(
+            &request.target,
+            &request.base,
+            vec![Mod {
+                id: "zoom".into(),
+                version: "2.0.0".into(),
+                sha256: "b".repeat(64),
+            }],
+        )
+        .unwrap();
+        assert!(check(&other, &archive, &signature, &[public], &into).is_err());
+        // One byte changed after signing.
+        let mut bytes = fs::read(&archive).unwrap();
+        let last = bytes.len() - 1;
+        bytes[last] ^= 1;
+        fs::write(&archive, bytes).unwrap();
+        assert!(check(&request, &archive, &signature, &[public], &into).is_err());
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn a_signed_archive_that_lies_about_its_contents_is_refused() {
+        let request = minimap_request();
+        let client = crate::backend::CLIENT;
+        let text = request.text();
+        let good = record(&[("minimap", "2.0.0")]);
+        let extra = record(&[("minimap", "2.0.0"), ("xray", "1.0.0")]);
+        let other_text = text.replace("2.0.0", "2.0.1");
+        let cases: [Vec<(&str, &[u8])>; 4] = [
+            // A file besides the three.
+            vec![
+                (client, b"g"),
+                ("native-mods.json", &good),
+                (REQUEST_FILE, text.as_bytes()),
+                ("run-me.sh", b"#!/bin/sh"),
+            ],
+            // A record naming a mod the request doesn't.
+            vec![
+                (client, b"g"),
+                ("native-mods.json", &extra),
+                (REQUEST_FILE, text.as_bytes()),
+            ],
+            // Another set's request inside, signed as this one's build.
+            vec![
+                (client, b"g"),
+                ("native-mods.json", &good),
+                (REQUEST_FILE, other_text.as_bytes()),
+            ],
+            // No program.
+            vec![("native-mods.json", &good), (REQUEST_FILE, text.as_bytes())],
+        ];
+        for (i, files) in cases.iter().enumerate() {
+            let dir = scratch(&format!("lies-{i}"));
+            let (archive, signature, public) = signed_archive(&dir, &request, files);
+            let into = dir.join("unpacked");
+            assert!(
+                check(&request, &archive, &signature, &[public], &into).is_err(),
+                "case {i}"
+            );
+            assert!(!into.join(client).exists(), "case {i}: nothing is written");
+            fs::remove_dir_all(dir).unwrap();
+        }
+    }
+
+    #[test]
+    fn only_an_instance_of_registry_files_asks_for_a_prebuilt_build() {
+        let home = scratch("instance");
+        let installed = home.join(native_mods::INSTALLED);
+        fs::create_dir_all(&installed).unwrap();
+        let zoom = hnmod(&installed, "zoom.hnmod", "zoom", "2.0.0");
+        let local = hnmod(&installed, "mine.hnmod", "mine", "0.1.0");
+        let index = |listed: &[(&str, &Path)], revoked: &str| {
+            let projects: Vec<_> = listed
+                .iter()
+                .map(|(id, path)| serde_json::json!({
+                    "id": id, "kind": "native-mod", "name": id, "summary": "", "license": "MIT",
+                    "source": "https://x.test", "versions": [{"version": "2.0.0", "api": "native-1",
+                    "game": "26.3", "file": {"name": format!("{id}.hnmod"), "url": "file:///x",
+                    "size": fs::metadata(path).unwrap().len(), "sha256": sha256(path)}}]
+                }))
+                .collect();
+            let text = serde_json::json!({"schema": 1, "projects": projects,
+                "revoked": if revoked.is_empty() { serde_json::json!([]) }
+                           else { serde_json::json!([{"id": revoked, "reason": "r", "date": "2026-11-07"}]) }});
+            horizon_mods::index::Index::parse_local(&text.to_string()).unwrap()
+        };
+        let base = "6".repeat(40);
+        let ask = |index: &horizon_mods::index::Index| {
+            instance_request(&home, "x86_64-unknown-linux-gnu", &base, index).unwrap()
+        };
+        // Nothing turned on: nothing to ask for.
+        assert_eq!(ask(&index(&[("zoom", &zoom)], "")), None);
+        crate::browser::java::set_enabled(&home, "zoom", true).unwrap();
+        let request = ask(&index(&[("zoom", &zoom)], "")).unwrap();
+        assert_eq!(request.mods.len(), 1);
+        assert_eq!(request.mods[0].sha256, sha256(&zoom));
+        // Taken down, or not the file the index lists: built here.
+        assert_eq!(ask(&index(&[("zoom", &zoom)], "zoom")), None);
+        assert_eq!(ask(&index(&[("zoom", &local)], "")), None);
+        // A mod of one's own turned on beside it: built here.
+        crate::browser::java::set_enabled(&home, "mine", true).unwrap();
+        assert_eq!(ask(&index(&[("zoom", &zoom)], "")), None);
+        fs::remove_dir_all(home).unwrap();
     }
 }
