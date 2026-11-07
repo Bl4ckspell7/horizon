@@ -1479,7 +1479,7 @@ mod tests {
             mob.extra.flag = true;
             let mut events = Vec::new();
             horizon_client::mobs::hostile::creeper_tick(mob, &mut events);
-            assert!(mob.removed);
+            assert!(mob.is_removed());
             game.mobs.retain(|m| m.id != id);
             game.audio.heard.clear();
             let particles = particle_count(&game);
