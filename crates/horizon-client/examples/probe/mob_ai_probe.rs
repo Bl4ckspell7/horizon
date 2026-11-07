@@ -1276,7 +1276,8 @@ pub fn main() -> horizon_client::Result<()> {
                 p.look = [f64::from(sin), -0.0, f64::from(cos)];
                 p.yaw = yaw;
             }
-            let mut snapshot: Vec<Seen> = mobs.iter().filter(|m| !m.is_removed()).map(seen).collect();
+            let mut snapshot: Vec<Seen> =
+                mobs.iter().filter(|m| !m.is_removed()).map(seen).collect();
             // The snapshot by position, kept as the game keeps it.
             let mut grid = SeenGrid::new(snapshot.iter().map(|e| e.bounds));
             let w = mob_world!(&snapshot);
