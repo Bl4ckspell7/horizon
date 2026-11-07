@@ -1318,6 +1318,35 @@ impl Game<'_> {
     pub(in crate::game) fn state_to_nbt(&self, state: BlockStateId) -> Tag {
         entity_nbt::state_to_nbt(self.pack.assets.registry, state)
     }
+    /// The mobs that leave the world with the chunks in `keys`: a rider
+    /// leaves with its root vehicle, and a root leaves when its own chunk
+    /// unloads — a boat or cart the player is riding stays with them.
+    /// Vanilla runs this decision before the chunk save (`setRemoved` then
+    /// `shouldBeSaved`); `entity_chunks` marks these mobs before saving.
+    fn unload_leaving_mobs(&self, keys: &HashSet<(i32, i32)>) -> HashSet<u32> {
+        let gone = |p: Vec3| keys.contains(&chunk_of(p));
+        let riding = self.riding;
+        let dropped = |id: u32| {
+            self.boats
+                .iter()
+                .any(|b| b.id == id && gone(b.position) && Some(b.id) != riding)
+                || self
+                    .carts
+                    .iter()
+                    .any(|c| c.id == id && gone(c.position) && Some(c.id) != riding)
+        };
+        (0..self.mobs.len())
+            .filter(|&i| {
+                let r = self.mob_root(i);
+                match self.mobs[r].extra.mount {
+                    Some(v) if dropped(v) => true,
+                    Some(v) if self.boats.iter().any(|b| b.id == v) => false,
+                    _ => gone(self.mobs[r].position),
+                }
+            })
+            .map(|i| self.mobs[i].id)
+            .collect()
+    }
     /// The entity NBT of every simulated entity in `keys`, plus the unknown
     /// entities kept for them. With `remove`, the entities leave the world
     /// (their chunks unload).
@@ -1328,6 +1357,17 @@ impl Game<'_> {
     ) -> Vec<((i32, i32), Vec<Tag>)> {
         let mut out: HashMap<(i32, i32), Vec<Tag>> =
             keys.iter().map(|k| (*k, Vec::new())).collect();
+        // Vanilla marks an entity leaving with its chunk `UNLOADED_TO_CHUNK`
+        // before the chunk is written, so `Entity.shouldBeSaved` decides what
+        // the save keeps: the leaving mobs go, one already destroyed does not.
+        let leaving = remove.then(|| self.unload_leaving_mobs(keys));
+        if let Some(leaving) = &leaving {
+            for m in &mut self.mobs {
+                if leaving.contains(&m.id) {
+                    m.set_removed(horizon_client::mobs::RemovalReason::UnloadedToChunk);
+                }
+            }
+        }
         // Every kind in `entity_lists!` saves itself (`Entity::save_nbt`).
         self.save_every_entity(keys, &mut out);
         if let Some(d) = &self.dragon
@@ -1522,23 +1562,9 @@ impl Game<'_> {
                 }
                 keep
             });
-            // Riders leave with their root vehicle, a boat's with the boat.
-            let leaving: HashSet<u32> = (0..self.mobs.len())
-                .filter(|&i| {
-                    let r = self.mob_root(i);
-                    match self.mobs[r].extra.mount {
-                        Some(v) if removed.contains(&v) => true,
-                        Some(v) if self.boats.iter().any(|b| b.id == v) => false,
-                        _ => gone(self.mobs[r].position),
-                    }
-                })
-                .map(|i| self.mobs[i].id)
-                .collect();
-            for m in &mut self.mobs {
-                if leaving.contains(&m.id) {
-                    m.set_removed(horizon_client::mobs::RemovalReason::UnloadedToChunk);
-                }
-            }
+            // Riders leave with their root vehicle, a boat's with the boat
+            // (`unload_leaving_mobs`, which marked them before the save).
+            let leaving = leaving.unwrap_or_default();
             self.mobs.retain(|m| {
                 let keep = !leaving.contains(&m.id);
                 if !keep {
