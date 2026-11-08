@@ -481,13 +481,16 @@ impl ItemColumns {
 }
 
 /// The block columns that container carts' and chest boats' boxes reach. The
-/// lists' stamps say when to rebuild: any write to either (a move, a spawn, a
-/// removal, items put in) rebuilds the columns on the next question, so a
-/// tick's hoppers share one build while nothing moves.
+/// lists' stamps say when they hold: after any write to either (a move, a
+/// spawn, a removal, items put in) the first question scans as before, and
+/// the second with nothing written in between builds them. A tick's hoppers
+/// share one build while nothing moves; the carts' own pass, which writes the
+/// carts between questions, never pays for one.
 #[derive(Default)]
 pub(super) struct ContainerEntityColumns {
-    /// The carts' and boats' stamps when built.
-    seen: Option<[horizon_client::join_seq::ListStamp; 2]>,
+    /// The carts' and boats' stamps when last asked, and whether the columns
+    /// were built for them.
+    seen: Option<([horizon_client::join_seq::ListStamp; 2], bool)>,
     cells: horizon_client::fast_hash::FxHashSet<(i32, i32)>,
 }
 impl ContainerEntityColumns {
@@ -501,32 +504,46 @@ impl ContainerEntityColumns {
         boats: &horizon_client::join_seq::JoinList<super::boats::Boat>,
         at: [f64; 3],
     ) -> bool {
-        let seen = [carts.stamp(), boats.stamp()];
-        if self.seen != Some(seen) {
-            self.seen = Some(seen);
-            self.cells.clear();
-            let boxes = carts
-                .iter()
-                .filter(|c| {
-                    matches!(
-                        c.kind,
-                        super::minecarts::CartKind::Chest | super::minecarts::CartKind::Hopper
-                    )
-                })
-                .map(|c| c.bounds())
-                .chain(boats.iter().filter(|b| b.chest).map(|b| b.bounds()));
-            for b in boxes {
-                let (lo, hi) = (b.min_position(), b.max_position());
-                for cx in lo.x.floor() as i32..=hi.x.floor() as i32 {
-                    for cz in lo.z.floor() as i32..=hi.z.floor() as i32 {
-                        self.cells.insert((cx, cz));
-                    }
-                }
+        let stamps = [carts.stamp(), boats.stamp()];
+        match self.seen {
+            Some((seen, true)) if seen == stamps => {}
+            Some((seen, false)) if seen == stamps => {
+                self.seen = Some((stamps, true));
+                self.build(carts, boats);
+            }
+            _ => {
+                self.seen = Some((stamps, false));
+                return true;
             }
         }
         let (x0, x1) = ((at[0] - 0.5).floor() as i32, (at[0] + 0.5).floor() as i32);
         let (z0, z1) = ((at[2] - 0.5).floor() as i32, (at[2] + 0.5).floor() as i32);
         (x0..=x1).any(|x| (z0..=z1).any(|z| self.cells.contains(&(x, z))))
+    }
+    fn build(
+        &mut self,
+        carts: &horizon_client::join_seq::JoinList<super::minecarts::Minecart>,
+        boats: &horizon_client::join_seq::JoinList<super::boats::Boat>,
+    ) {
+        self.cells.clear();
+        let boxes = carts
+            .iter()
+            .filter(|c| {
+                matches!(
+                    c.kind,
+                    super::minecarts::CartKind::Chest | super::minecarts::CartKind::Hopper
+                )
+            })
+            .map(|c| c.bounds())
+            .chain(boats.iter().filter(|b| b.chest).map(|b| b.bounds()));
+        for b in boxes {
+            let (lo, hi) = (b.min_position(), b.max_position());
+            for cx in lo.x.floor() as i32..=hi.x.floor() as i32 {
+                for cz in lo.z.floor() as i32..=hi.z.floor() as i32 {
+                    self.cells.insert((cx, cz));
+                }
+            }
+        }
     }
 }
 
@@ -1799,7 +1816,10 @@ mod container_entity_column_tests {
             .unwrap();
         carts[chest].position = Vec3::new(200.5, 64.0, 200.5);
         assert_eq!(scan(&carts, &boats, far), 1);
+        // The first question after a write scans; the second builds.
         assert!(columns.may_meet(&carts, &boats, far));
+        assert!(columns.may_meet(&carts, &boats, far));
+        assert!(!columns.may_meet(&carts, &boats, [-300.5, 64.5, 0.5]));
     }
 }
 
