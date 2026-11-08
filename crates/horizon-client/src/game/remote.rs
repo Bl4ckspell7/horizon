@@ -5190,7 +5190,10 @@ impl Game<'_> {
                     self.book = None;
                     self.sign_edit = None;
                 }
-                if !self.remote_lectern_closed() && (self.screen == Screen::Inventory || dialog) {
+                // A mod screen over the container goes with it.
+                let container =
+                    self.screen == Screen::Inventory || self.mod_screen_covers_inventory();
+                if !self.remote_lectern_closed() && (container || dialog) {
                     self.remote_close_local();
                     self.screen = Screen::Playing;
                     self.capture(true);

@@ -45,12 +45,17 @@ impl Game<'_> {
     }
     /// `Minecraft.pause`: a single-player game with a pausing screen open.
     pub(super) fn pauses_game(&self) -> bool {
+        // A mod screen over a pausing screen keeps the game paused.
+        let screen = match self.mod_screen_under {
+            Some(under) if self.screen == Screen::Mod => under.screen,
+            _ => self.screen,
+        };
         self.has_singleplayer_server()
             && !self.is_published()
             && !self.has_split_players()
             && self.title.is_none()
             && (matches!(
-                self.screen,
+                screen,
                 Screen::Paused
                     | Screen::Options
                     | Screen::Stats

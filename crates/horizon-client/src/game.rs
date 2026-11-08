@@ -1036,6 +1036,18 @@ impl Screen {
         }
     }
 }
+/// The screen a native mod's own screen replaced
+/// (`native_mod_screen_open_over`): what Escape returns to.
+#[derive(Clone, Copy)]
+struct ModScreenUnder {
+    screen: Screen,
+    /// Drawn under the mod screen (the mod asked, and the screen is one that
+    /// can be drawn without its input).
+    drawn: bool,
+    /// The panel it drew this frame (`screen_rect`), for the mod to place
+    /// what it draws over it by.
+    rect: Option<[f32; 4]>,
+}
 struct Mining {
     pos: [i32; 3],
     progress: f32,
@@ -3150,6 +3162,8 @@ struct Game<'a> {
     native_packets: native_packets::NativePackets,
     /// The mod whose own screen is open (`Screen::Mod`).
     native_mod_screen: Option<String>,
+    /// The screen the open mod screen replaced (None: it was over the world).
+    mod_screen_under: Option<ModScreenUnder>,
     /// Meshed sections waiting for an upload budget (Horizon settings).
     pending_uploads: Vec<((i32, i32, i32), horizon_client::mesher::SectionMesh)>,
     /// This frame's view frustum, for culling entities and block entities.
@@ -8085,6 +8099,61 @@ impl Game<'_> {
         self.draw_pad_cursor(&mut batch);
         batch
     }
+    /// What `screen` draws of its own, once a frame (the match `hud_layers`
+    /// runs after the HUD): `Screen::Mod` draws only the screen it replaced,
+    /// when `native_mod_screen_open_over` asked for it.
+    fn draw_screen(&mut self, batch: &mut HudBatch, screen: Screen) {
+        match screen {
+            Screen::Paused if self.pause_menu => self.draw_pause_menu(batch),
+            // PauseScreen(false): only its title, at the top.
+            Screen::Paused => {
+                let title = self.translate("menu.paused", "Game Paused");
+                horizon_client::widgets::begin_screen(|| {
+                    horizon_client::widgets::ScreenInfo::new("paused", title.clone())
+                });
+                let tw = HudBatch::text_width(&self.gui.atlas, &title);
+                batch.text(
+                    &self.gui.atlas,
+                    &title,
+                    ((batch.width / 2.0).floor() - (tw / 2.0).floor()).floor(),
+                    10.0,
+                    u32::MAX,
+                    true,
+                );
+            }
+            Screen::GameModeSwitcher => self.draw_gamemode_switcher(batch),
+            Screen::EmoteWheel => self.draw_emote_wheel(batch),
+            Screen::Dead => self.draw_death_screen(batch),
+            Screen::Stats => self.draw_stats(batch),
+            Screen::Advancements => self.draw_advancements(batch),
+            Screen::Mod => self.draw_mod_screen_under(batch),
+            Screen::WorldOptions => self.draw_world_options(batch),
+            Screen::Friends => self.draw_friends_screen(batch),
+            Screen::Social => self.draw_social_screen(batch),
+            Screen::ServerLinks => self.draw_server_links(batch),
+            Screen::ConfirmLink => self.draw_confirm_link(batch),
+            Screen::DialogWarning => self.draw_dialog_warning(batch),
+            Screen::CommandBlock => self.draw_command_block(batch),
+            Screen::BlockEditor => self.draw_block_editor(batch),
+            Screen::DebugOptions => self.draw_debug_options(batch),
+            Screen::HudEditor => self.draw_hud_editor(batch),
+            Screen::Studio => {}
+            Screen::Inventory => {
+                let from = batch.vertices.len();
+                self.draw_inventory(batch);
+                self.draw_mod_browser(batch);
+                self.draw_pad_menu_guide(batch, from);
+            }
+            Screen::Creative => {
+                let from = batch.vertices.len();
+                self.draw_creative(batch);
+                self.draw_mod_browser(batch);
+                self.draw_pad_menu_guide(batch, from);
+            }
+            Screen::Chat => self.draw_chat_screen(batch),
+            Screen::Playing | Screen::Options | Screen::Win => {}
+        }
+    }
     fn hud_layers(&mut self, size: [u32; 2]) -> HudBatch {
         self.pad.guide_shown.clear();
         let mut batch = HudBatch::new(size);
@@ -8444,56 +8513,7 @@ impl Game<'_> {
         } else {
             self.screen
         };
-        match screen {
-            Screen::Paused if self.pause_menu => self.draw_pause_menu(&mut batch),
-            // PauseScreen(false): only its title, at the top.
-            Screen::Paused => {
-                let title = self.translate("menu.paused", "Game Paused");
-                horizon_client::widgets::begin_screen(|| {
-                    horizon_client::widgets::ScreenInfo::new("paused", title.clone())
-                });
-                let tw = HudBatch::text_width(&self.gui.atlas, &title);
-                batch.text(
-                    &self.gui.atlas,
-                    &title,
-                    ((batch.width / 2.0).floor() - (tw / 2.0).floor()).floor(),
-                    10.0,
-                    u32::MAX,
-                    true,
-                );
-            }
-            Screen::GameModeSwitcher => self.draw_gamemode_switcher(&mut batch),
-            Screen::EmoteWheel => self.draw_emote_wheel(&mut batch),
-            Screen::Dead => self.draw_death_screen(&mut batch),
-            Screen::Stats => self.draw_stats(&mut batch),
-            Screen::Advancements => self.draw_advancements(&mut batch),
-            Screen::Mod => {}
-            Screen::WorldOptions => self.draw_world_options(&mut batch),
-            Screen::Friends => self.draw_friends_screen(&mut batch),
-            Screen::Social => self.draw_social_screen(&mut batch),
-            Screen::ServerLinks => self.draw_server_links(&mut batch),
-            Screen::ConfirmLink => self.draw_confirm_link(&mut batch),
-            Screen::DialogWarning => self.draw_dialog_warning(&mut batch),
-            Screen::CommandBlock => self.draw_command_block(&mut batch),
-            Screen::BlockEditor => self.draw_block_editor(&mut batch),
-            Screen::DebugOptions => self.draw_debug_options(&mut batch),
-            Screen::HudEditor => self.draw_hud_editor(&mut batch),
-            Screen::Studio => {}
-            Screen::Inventory => {
-                let from = batch.vertices.len();
-                self.draw_inventory(&mut batch);
-                self.draw_mod_browser(&mut batch);
-                self.draw_pad_menu_guide(&mut batch, from);
-            }
-            Screen::Creative => {
-                let from = batch.vertices.len();
-                self.draw_creative(&mut batch);
-                self.draw_mod_browser(&mut batch);
-                self.draw_pad_menu_guide(&mut batch, from);
-            }
-            Screen::Chat => self.draw_chat_screen(&mut batch),
-            Screen::Playing | Screen::Options | Screen::Win => {}
-        }
+        self.draw_screen(&mut batch, screen);
         // ScreenEvent.Render.Post: the open screen has drawn itself and its
         // tooltips, so a native mod draws over it here. Never `Playing`: the
         // prompts, books and sign editors drawn over gameplay keep it, draw
@@ -17565,6 +17585,7 @@ impl<'a> Game<'a> {
             native_player_fx: Default::default(),
             native_packets: Default::default(),
             native_mod_screen: None,
+            mod_screen_under: None,
             sky_darken_memo: Default::default(),
             water_plane_memo: Default::default(),
             water_plane_scan: Default::default(),
