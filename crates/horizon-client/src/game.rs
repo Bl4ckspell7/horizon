@@ -3093,6 +3093,9 @@ struct Game<'a> {
     /// minecarts ask them before scanning every item. An explosion, a
     /// command or a pickup writes the items, and the columns are rebuilt.
     cart_item_columns: Option<machines::StampedItemColumns>,
+    /// Where container carts and chest boats are (hoppers and droppers
+    /// looking for a container entity), kept until either list is written.
+    container_entity_columns: machines::ContainerEntityColumns,
     /// Where the mobs are, while the block entities tick (potent sulfur gas).
     pass_mobs: Option<potent_sulfur::PassMobs>,
     /// Block-entity positions retained between ticks for client effects.
@@ -17518,6 +17521,7 @@ impl<'a> Game<'a> {
             item_columns: None,
             pickup_columns: None,
             cart_item_columns: None,
+            container_entity_columns: Default::default(),
             pass_mobs: None,
             spawner_tick_positions: Vec::new(),
             trial_spawner_tick_positions: Vec::new(),
