@@ -480,6 +480,56 @@ impl ItemColumns {
     }
 }
 
+/// The block columns that container carts' and chest boats' boxes reach. The
+/// lists' stamps say when to rebuild: any write to either (a move, a spawn, a
+/// removal, items put in) rebuilds the columns on the next question, so a
+/// tick's hoppers share one build while nothing moves.
+#[derive(Default)]
+pub(super) struct ContainerEntityColumns {
+    /// The carts' and boats' stamps when built.
+    seen: Option<[horizon_client::join_seq::ListStamp; 2]>,
+    cells: horizon_client::fast_hash::FxHashSet<(i32, i32)>,
+}
+impl ContainerEntityColumns {
+    /// Whether a container entity's box may meet the unit box around `at`
+    /// (`entity_container_at`'s test). A box that meets it shares a point with
+    /// it, and that point's column is both in the box's columns and in the
+    /// query's, so `false` is exact.
+    pub(super) fn may_meet(
+        &mut self,
+        carts: &horizon_client::join_seq::JoinList<super::minecarts::Minecart>,
+        boats: &horizon_client::join_seq::JoinList<super::boats::Boat>,
+        at: [f64; 3],
+    ) -> bool {
+        let seen = [carts.stamp(), boats.stamp()];
+        if self.seen != Some(seen) {
+            self.seen = Some(seen);
+            self.cells.clear();
+            let boxes = carts
+                .iter()
+                .filter(|c| {
+                    matches!(
+                        c.kind,
+                        super::minecarts::CartKind::Chest | super::minecarts::CartKind::Hopper
+                    )
+                })
+                .map(|c| c.bounds())
+                .chain(boats.iter().filter(|b| b.chest).map(|b| b.bounds()));
+            for b in boxes {
+                let (lo, hi) = (b.min_position(), b.max_position());
+                for cx in lo.x.floor() as i32..=hi.x.floor() as i32 {
+                    for cz in lo.z.floor() as i32..=hi.z.floor() as i32 {
+                        self.cells.insert((cx, cz));
+                    }
+                }
+            }
+        }
+        let (x0, x1) = ((at[0] - 0.5).floor() as i32, (at[0] + 0.5).floor() as i32);
+        let (z0, z1) = ((at[2] - 0.5).floor() as i32, (at[2] + 0.5).floor() as i32);
+        (x0..=x1).any(|x| (z0..=z1).any(|z| self.cells.contains(&(x, z))))
+    }
+}
+
 fn bone_meal() -> ItemStack {
     ItemStack {
         item: "minecraft:bone_meal".into(),
@@ -1183,6 +1233,14 @@ impl Game<'_> {
                 && lo.z < at[2] + 0.5
                 && hi.z > at[2] - 0.5
         };
+        // Most hoppers have no container entity next to them: the columns
+        // the query box spans rule that out without scanning every cart.
+        if !self
+            .container_entity_columns
+            .may_meet(&self.carts, &self.boats, at)
+        {
+            return None;
+        }
         let mut found: Vec<u32> = self
             .carts
             .iter()
@@ -1663,6 +1721,85 @@ mod brewing_fuel_transfer_tests {
                 accepted.then_some(1)
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod container_entity_column_tests {
+    use super::super::{
+        boats::Boat,
+        minecarts::{CartKind, Minecart},
+    };
+    use super::ContainerEntityColumns;
+    use horizon_client::join_seq::JoinList;
+    use horizon_core::geometry::Vec3;
+
+    /// `entity_container_at`'s scan: the container entities whose box meets
+    /// the unit box around `at`.
+    fn scan(carts: &[Minecart], boats: &[Boat], at: [f64; 3]) -> usize {
+        let meets = |b: horizon_core::geometry::Aabb| {
+            let (lo, hi) = (b.min_position(), b.max_position());
+            (0..3).all(|i| {
+                let (l, h) = ([lo.x, lo.y, lo.z][i], [hi.x, hi.y, hi.z][i]);
+                l < at[i] + 0.5 && h > at[i] - 0.5
+            })
+        };
+        carts
+            .iter()
+            .filter(|c| matches!(c.kind, CartKind::Chest | CartKind::Hopper) && meets(c.bounds()))
+            .count()
+            + boats
+                .iter()
+                .filter(|b| b.chest && meets(b.bounds()))
+                .count()
+    }
+
+    #[test]
+    fn a_container_entity_is_never_ruled_out_and_a_move_is_seen() {
+        let mut seed = 7u64;
+        let mut next = |range: f64| {
+            seed = seed.wrapping_mul(6_364_136_223_846_793_005).wrapping_add(1);
+            (seed >> 11) as f64 / (1u64 << 53) as f64 * range
+        };
+        let kinds = [CartKind::Chest, CartKind::Hopper, CartKind::Rideable];
+        let mut carts = JoinList::default();
+        let mut boats = JoinList::default();
+        for id in 0..60u32 {
+            let at = Vec3::new(next(24.0) - 12.0, 64.0, next(24.0) - 12.0);
+            carts.push(Minecart::new(id, kinds[id as usize % 3], at));
+            let boat = Boat::new(
+                100 + id,
+                "oak".into(),
+                Vec3::new(at.x + 3.0, at.y, at.z),
+                0.0,
+            );
+            boats.push(if id % 2 == 0 { boat.with_chest() } else { boat });
+        }
+        let mut columns = ContainerEntityColumns::default();
+        let (mut met, mut ruled_out) = (0, 0);
+        for x in -16..16 {
+            for z in -16..16 {
+                let at = [f64::from(x) + 0.5, 64.5, f64::from(z) + 0.5];
+                let found = scan(&carts, &boats, at);
+                if !columns.may_meet(&carts, &boats, at) {
+                    assert_eq!(found, 0, "ruled out a container entity at {at:?}");
+                    ruled_out += 1;
+                }
+                met += usize::from(found > 0);
+            }
+        }
+        assert!(met > 0 && ruled_out > 0, "met {met}, ruled out {ruled_out}");
+
+        // A chest cart moved somewhere empty is found there on the next question.
+        let far = [200.5, 64.5, 200.5];
+        assert!(!columns.may_meet(&carts, &boats, far));
+        let chest = carts
+            .iter()
+            .position(|c| c.kind == CartKind::Chest)
+            .unwrap();
+        carts[chest].position = Vec3::new(200.5, 64.0, 200.5);
+        assert_eq!(scan(&carts, &boats, far), 1);
+        assert!(columns.may_meet(&carts, &boats, far));
     }
 }
 
