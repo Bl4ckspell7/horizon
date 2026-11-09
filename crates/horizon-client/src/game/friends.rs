@@ -8,8 +8,8 @@
 //! loopback address. The joining side is horizon-friends' (`game`), registered by
 //! horizon-official.
 //!
-//! It sees the game only through `horizon_hooks::share` (the engine's `ShareView`, its
-//! `Hooks::share` tick and `Hooks::lan_closed`), and keeps what it shares in its own static,
+//! It sees the game only through `horizon_hooks::share` (the engine's `ShareView`) and
+//! `Hooks::lan_closed`, and keeps what it shares in its own static,
 //! so it can leave the engine for horizon-friends (spec #14167). The screen and the
 //! `horizon-ctl friends` command below still reach it from `Game` until then.
 use super::Game;
@@ -64,11 +64,9 @@ fn take() -> Option<Sharing> {
 pub struct Friends;
 pub static HOOKS: Friends = Friends;
 
+/// No `Hooks::share` yet: the code and sessions are read while the screen is drawn or
+/// `horizon-ctl friends status` asks, as before. The screen's page uses it (#14167 step 2a).
 impl Hooks for Friends {
-    fn share(&self, world: &mut dyn ShareView) {
-        tick(world);
-    }
-
     /// The LAN server is closing: the code goes with it.
     fn lan_closed(&self) {
         if ON.load(Ordering::Relaxed)
@@ -181,7 +179,7 @@ fn stop(world: &mut dyn ShareView) {
     }
 }
 
-/// New codes and sessions, once a client tick (also while the game is paused).
+/// New codes and sessions, while the screen is drawn and when `friends status` asks.
 fn tick(world: &mut dyn ShareView) {
     if !ON.load(Ordering::Relaxed) {
         return;
@@ -348,10 +346,12 @@ fn control(
 }
 
 impl Game<'_> {
-    /// Play with Friends. New codes and sessions come with the client tick, which runs while
-    /// the world is paused under it.
+    /// Play with Friends. The world is paused under it in singleplayer, so
+    /// new codes and sessions are read while it is drawn.
     pub(super) fn draw_friends_screen(&mut self, batch: &mut HudBatch) {
-        let view = status(&self.share_view());
+        let world = &mut self.share_view();
+        tick(world);
+        let view = status(world);
         horizon_client::widgets::begin_screen(|| {
             horizon_client::widgets::ScreenInfo::new("friends", friends_screen::TITLE)
         });

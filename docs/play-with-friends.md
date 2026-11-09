@@ -55,8 +55,8 @@ reads codes and opens the tunnel, which the join (`net.rs`) then reaches on a lo
 horizon-friends' `game` side offers it, and the official executable (`horizon-official`) registers it;
 horizon-client's own executable has none, so there a `friend:` address is refused. Hosting needs no hook: the
 host end connects to the world's LAN port over loopback, so tunnelled guests are LAN guests. Hosting sees the
-game only through `Hooks::share` (each client tick, with `horizon_hooks::share::ShareView`: open the world to LAN,
-its players, chat, the clipboard) and `Hooks::lan_closed`, and keeps what it shares in its own static. It still
+game only through `horizon_hooks::share::ShareView` (open the world to LAN, its players, chat, the clipboard) and
+`Hooks::lan_closed`, and keeps what it shares in its own static. It still
 lives in horizon-client (`game/friends.rs`, `game/friends/screen.rs`, the `friends` feature, which comes with
 `horizon-extras`) until the pause menu and `horizon-ctl` offer entries to crates above the engine (#14167).
 
