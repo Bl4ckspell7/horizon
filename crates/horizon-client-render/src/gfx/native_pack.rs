@@ -1,7 +1,8 @@
 //! One of Horizon's own shader packs while it runs (docs/shaders.md): the frame its stages
 //! read, its sky, material and post stages, and the timer of their passes.
 
-use horizon_shader_api::{Report, StageKind};
+use horizon_render_pipeline::StageKind;
+use horizon_shader_api::Report;
 
 use super::displace::Displacement;
 use super::native_material::{DisplacedShape, NativeMaterial, TerrainShape};
@@ -253,7 +254,7 @@ impl NativePack {
             .transpose()?;
         // A 0.2 pack always has one: its decode and tonemap run without a chain too.
         let tonemap = others.iter().find(|s| s.kind == StageKind::Tonemap);
-        let post = (!post.is_empty() || api == horizon_shader_api::Api::V0_2)
+        let post = (!post.is_empty() || api == horizon_render_pipeline::Api::V0_2)
             .then(|| {
                 let manifest = &report.manifest;
                 NativePost::new(device, post, manifest, constants, format, &frame, tonemap)

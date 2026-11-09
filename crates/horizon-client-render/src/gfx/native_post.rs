@@ -7,9 +7,9 @@
 //! (`NativeFrame`).
 
 use glam::{Mat4, Vec3};
-use horizon_shader_api::{
-    Api, Frame as FrameInputs, StageKind, check::CheckedStage, stages::GROUP,
-};
+use horizon_render_pipeline::stages::{GROUP, POST_TARGET_BINDING};
+use horizon_render_pipeline::{Api, Frame as FrameInputs, StageKind};
+use horizon_shader_api::check::CheckedStage;
 
 use super::Frame;
 
@@ -1014,10 +1014,9 @@ impl NativePost {
             texture_entry(11, wgpu::TextureSampleType::Uint),
         ];
         entries.extend(pack_texture_entries(frame.textures.len()));
-        entries
-            .extend((0..targets.len() as u32).map(|j| {
-                texture_entry(horizon_shader_api::stages::POST_TARGET_BINDING + j, float)
-            }));
+        entries.extend(
+            (0..targets.len() as u32).map(|j| texture_entry(POST_TARGET_BINDING + j, float)),
+        );
         let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("Native shader pack post"),
             entries: &entries,
@@ -1346,7 +1345,7 @@ impl NativePost {
                         view
                     };
                     wgpu::BindGroupEntry {
-                        binding: horizon_shader_api::stages::POST_TARGET_BINDING + j as u32,
+                        binding: POST_TARGET_BINDING + j as u32,
                         resource: wgpu::BindingResource::TextureView(view),
                     }
                 }));
@@ -1655,7 +1654,7 @@ pub fn pack_textures(
 
 /// Layout entries of `count` pack textures and their samplers.
 pub(super) fn pack_texture_entries(count: usize) -> Vec<wgpu::BindGroupLayoutEntry> {
-    use horizon_shader_api::stages::{TEXTURE_BINDING, TEXTURE_SAMPLER_BINDING};
+    use horizon_render_pipeline::stages::{TEXTURE_BINDING, TEXTURE_SAMPLER_BINDING};
     (0..count as u32)
         .flat_map(|i| {
             [
@@ -1684,7 +1683,7 @@ pub(super) fn pack_texture_entries(count: usize) -> Vec<wgpu::BindGroupLayoutEnt
 pub(super) fn pack_texture_group_entries(
     textures: &[(wgpu::TextureView, wgpu::Sampler)],
 ) -> Vec<wgpu::BindGroupEntry<'_>> {
-    use horizon_shader_api::stages::{TEXTURE_BINDING, TEXTURE_SAMPLER_BINDING};
+    use horizon_render_pipeline::stages::{TEXTURE_BINDING, TEXTURE_SAMPLER_BINDING};
     textures
         .iter()
         .enumerate()

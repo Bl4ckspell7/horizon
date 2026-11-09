@@ -7661,7 +7661,7 @@ impl Renderer {
     ) -> std::result::Result<Vec<String>, String> {
         let linear = pack
             .as_ref()
-            .is_some_and(|p| p.0.manifest.api == horizon_shader_api::Api::V0_2);
+            .is_some_and(|p| p.0.manifest.api == horizon_render_pipeline::Api::V0_2);
         if (linear || self.output.frame.format == LINEAR_FRAME)
             && linear != (self.output.frame.format == LINEAR_FRAME)
             && !std::mem::replace(&mut self.frame_kept_logged, true)
@@ -10410,7 +10410,7 @@ impl Renderer {
                 self.own_timing.as_mut(),
             );
             pass.set_bind_group(0, &self.group, &[]);
-            pass.set_bind_group(horizon_shader_api::stages::GROUP, &shadow.group, &[]);
+            pass.set_bind_group(horizon_render_pipeline::stages::GROUP, &shadow.group, &[]);
             if flat_frame
                 && let Some(flat) = &self.flat
                 && let Some(pipeline) = &shadow.flat
@@ -10443,7 +10443,7 @@ impl Renderer {
                 self.own_timing.as_mut(),
             );
             pass.set_bind_group(0, &self.group, &[]);
-            pass.set_bind_group(horizon_shader_api::stages::GROUP, &shadow.group, &[]);
+            pass.set_bind_group(horizon_render_pipeline::stages::GROUP, &shadow.group, &[]);
             if flat_frame
                 && let Some(flat) = &self.flat
                 && let Some(pipeline) = &shadow.flat_translucent
@@ -10475,7 +10475,7 @@ impl Renderer {
                     .begin_entities(&mut encoder, "Native shader pack entity shadow");
                 pass.set_pipeline(&shadow.entity);
                 pass.set_bind_group(0, &self.entity_group, &[]);
-                pass.set_bind_group(horizon_shader_api::stages::GROUP, &shadow.group, &[]);
+                pass.set_bind_group(horizon_render_pipeline::stages::GROUP, &shadow.group, &[]);
                 pass.set_vertex_buffer(0, self.entity_buffer.slice(..));
                 pass.set_index_buffer(self.indices.slice(..), wgpu::IndexFormat::Uint32);
                 pass.draw_indexed(0..entity_quads * 6, 0, 0..1);
@@ -10696,7 +10696,7 @@ impl Renderer {
         let gpu_occluding = gpu_frame && self.gpu_culling.as_ref().is_some_and(|g| g.occluding());
         let pack_frame = |pass: &mut wgpu::RenderPass<'_>| {
             if let Some((_, group)) = material {
-                pass.set_bind_group(horizon_shader_api::stages::GROUP, group, &[]);
+                pass.set_bind_group(horizon_render_pipeline::stages::GROUP, group, &[]);
             }
         };
         // A pack's solid terrain that calls `set_surface` also writes the surface target, in
@@ -12084,7 +12084,7 @@ impl Renderer {
             && self
                 .native
                 .as_ref()
-                .is_none_or(|n| n.frame.api == horizon_shader_api::Api::V0_1);
+                .is_none_or(|n| n.frame.api == horizon_render_pipeline::Api::V0_1);
         match (&self.hdr, &surface_frame) {
             (Some(hdr), Some(f)) => hdr.present(
                 &self.queue,

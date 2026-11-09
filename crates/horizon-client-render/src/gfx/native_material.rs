@@ -8,7 +8,8 @@
 //! colour. They read the terrain's group 0, the flat draws' group 1 where those run, and the
 //! pack's frame at group 3.
 
-use horizon_shader_api::{check::CheckedStage, stages::GROUP};
+use horizon_render_pipeline::stages::GROUP;
+use horizon_shader_api::check::CheckedStage;
 
 use super::native_post::{NativeFrame, present_constants};
 use super::wgsl_prefix::{TERRAIN, prefixed, section};
@@ -369,7 +370,7 @@ fn shader_source(
     tags: &[(u32, u32)],
     materials: &[(u32, u32)],
     (vertex, displaced): (bool, bool),
-    api: horizon_shader_api::Api,
+    api: horizon_render_pipeline::Api,
 ) -> String {
     format!(
         "{source}\n// Horizon's terrain (terrain.wgsl)\n{}{}{}{}{}{ENTRIES}{}{}",
@@ -398,7 +399,7 @@ fn module(
     materials: &[(u32, u32)],
     vertex: bool,
     displaced: bool,
-    api: horizon_shader_api::Api,
+    api: horizon_render_pipeline::Api,
 ) -> Result<naga::Module, String> {
     let text = shader_source(&stage.source, tags, materials, (vertex, displaced), api);
     naga::front::wgsl::parse_str(&text)
@@ -417,7 +418,7 @@ impl NativeMaterial {
         vertex: bool,
         displaced: Option<&DisplacedShape<'_>>,
     ) -> Result<Self, String> {
-        let writes_surface = horizon_shader_api::stages::calls_set_surface(&stage.source);
+        let writes_surface = horizon_render_pipeline::stages::calls_set_surface(&stage.source);
         let module = module(
             stage,
             shape.sprite_tags,
@@ -586,7 +587,7 @@ impl NativeMaterial {
 }
 
 #[cfg(test)]
-pub(super) fn coverage_test_shader(api: horizon_shader_api::Api) -> String {
+pub(super) fn coverage_test_shader(api: horizon_render_pipeline::Api) -> String {
     use horizon_shader_api::{MANIFEST, Pack, StageKind, check};
     let manifest = format!(
         "schema = 1\nid = \"coverage\"\nname = \"Coverage\"\nversion = \"1\"\napi = \"{api}\"\n[material]\nfile = \"material.wgsl\"\n[displacement]\n"
@@ -829,7 +830,7 @@ mod tests {
                 .into();
             let report = check(&Pack::from_files(files).unwrap()).unwrap();
             let source = report.stages[0].source.clone()
-                + horizon_shader_api::stages::PBR_STUB
+                + horizon_render_pipeline::stages::PBR_STUB
                 + super::super::native_post::line_helpers(api)
                 + entry;
             let module = device.create_shader_module(wgpu::ShaderModuleDescriptor {

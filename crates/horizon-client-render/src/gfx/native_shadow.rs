@@ -7,7 +7,8 @@
 //! prelude's `shadow_position` undoes.
 
 use horizon_render_pipeline::Shadow;
-use horizon_shader_api::{Api, Frame as FrameInputs, manifest::Shadow as Settings, stages::GROUP};
+use horizon_render_pipeline::{Api, Frame as FrameInputs, stages::GROUP};
+use horizon_shader_api::manifest::Shadow as Settings;
 
 use super::native_material::TerrainShape;
 use super::wgsl_prefix::{TERRAIN, prefixed, section};
@@ -387,7 +388,7 @@ fn entity_source() -> String {
     format!(
         "{}@group({GROUP}) @binding(0) var<uniform> frame: Frame;\n{}{ENTITY_ENTRIES}",
         FrameInputs::WGSL.wgsl(),
-        horizon_shader_api::stages::SHADOW_HELPERS,
+        horizon_render_pipeline::stages::SHADOW_HELPERS,
     )
 }
 
@@ -486,7 +487,7 @@ fn shader_source(
         (Some(material), _) => (
             format!(
                 "{material}{}{table}{}{}{GRID_ENTRIES}",
-                horizon_shader_api::stages::PBR_STUB,
+                horizon_render_pipeline::stages::PBR_STUB,
                 super::displace::RELIEF,
                 super::displace::GRID,
             ),
@@ -504,7 +505,7 @@ fn shader_source(
             format!(
                 "{}@group({GROUP}) @binding(0) var<uniform> frame: Frame;\n{}{UNTAKEN}",
                 FrameInputs::WGSL.wgsl(),
-                horizon_shader_api::stages::SHADOW_HELPERS,
+                horizon_render_pipeline::stages::SHADOW_HELPERS,
             ),
             super::native_material::DISPLACE_VANILLA,
         ),

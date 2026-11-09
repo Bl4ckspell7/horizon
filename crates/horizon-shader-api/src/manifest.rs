@@ -9,37 +9,7 @@ pub const SCHEMA: u32 = 1;
 /// templates write, and what the game and the registry take.
 pub const API: &str = Api::V0_1.as_str();
 
-/// A shader API line: the stages, their signatures and the inputs a pack's WGSL may read.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum Api {
-    /// Vanilla's gamma values.
-    V0_1,
-    /// Linear light (docs/design/hdr-linear-light.md). Experimental: checked, not yet drawn.
-    V0_2,
-}
-
-impl Api {
-    /// Every line this build reads and checks, oldest first.
-    pub const SERVED: [Api; 2] = [Api::V0_1, Api::V0_2];
-
-    /// The manifest's `api` value.
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Api::V0_1 => "0.1",
-            Api::V0_2 => "0.2",
-        }
-    }
-
-    pub fn parse(line: &str) -> Option<Api> {
-        Self::SERVED.into_iter().find(|a| a.as_str() == line)
-    }
-}
-
-impl std::fmt::Display for Api {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        f.write_str(self.as_str())
-    }
-}
+pub use horizon_render_pipeline::Api;
 
 /// `[frame] blend` (0.2): what the frame stores, and so how see-through draws blend.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

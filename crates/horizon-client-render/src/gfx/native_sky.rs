@@ -6,7 +6,8 @@
 //! names). It reads the renderer's globals (group 0) and the pack's frame (group 3), and
 //! draws where vanilla's sky draws; the sun, moon, stars and the dark disc are drawn over it.
 
-use horizon_shader_api::{check::CheckedStage, stages::GROUP};
+use horizon_render_pipeline::stages::GROUP;
+use horizon_shader_api::check::CheckedStage;
 
 use super::native_post::{NativeFrame, present_constants};
 use super::wgsl_prefix::{TERRAIN, prefixed, section};
@@ -40,7 +41,7 @@ fn vanilla_sky() -> String {
 }
 
 /// The sky shader for the pack's sky stage `source`.
-fn shader_source(source: &str, api: horizon_shader_api::Api) -> String {
+fn shader_source(source: &str, api: horizon_render_pipeline::Api) -> String {
     format!(
         "{source}\n// Horizon's sky (terrain.wgsl)\n{}{}{PACK_ENTRY}",
         vanilla_sky(),
@@ -198,7 +199,7 @@ mod tests {
         // A pack may use the renderer's names for its own things.
         let own = "override gain: f32;\nconst PI: f32 = 3.0;\nfn view_ray() -> f32 { return PI; }\n\
             fn sky(input: SkyInput) -> vec4<f32> { return input.color * gain * view_ray(); }\n";
-        let text = shader_source(&stage(own).source, horizon_shader_api::Api::V0_1);
+        let text = shader_source(&stage(own).source, horizon_render_pipeline::Api::V0_1);
         let module = naga::front::wgsl::parse_str(&text).unwrap_or_else(|e| {
             panic!("{}", e.emit_to_string(&text));
         });
@@ -261,7 +262,7 @@ mod tests {
             Vec::new(),
             Default::default(),
             None,
-            horizon_shader_api::Api::V0_1,
+            horizon_render_pipeline::Api::V0_1,
         );
         queue.write_buffer(
             &frame.buffer,

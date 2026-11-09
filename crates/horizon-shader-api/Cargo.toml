@@ -7,7 +7,8 @@ rust-version.workspace = true
 description = "Horizon's own shader packs (WGSL, docs/shaders.md): the format, the stages, the check, and the horizon-shader tool"
 
 [dependencies]
-bytemuck = { version = "1.24", features = ["derive"] }
+# The stage interface packs are written against (the renderer's, engine).
+horizon-render-pipeline = { path = "../horizon-render-pipeline" }
 # Parses and validates a pack's WGSL, and translates it as wgpu does for Vulkan, Metal and DirectX 12.
 png = "0.18"
 naga = { version = "30.0.1", features = ["wgsl-in", "spv-out", "msl-out", "hlsl-out"] }

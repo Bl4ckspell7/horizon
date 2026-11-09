@@ -158,7 +158,7 @@ impl Weather {
         match native {
             Some((pipeline, frame)) => {
                 pass.set_pipeline(pipeline);
-                pass.set_bind_group(horizon_shader_api::stages::GROUP, frame, &[]);
+                pass.set_bind_group(horizon_render_pipeline::stages::GROUP, frame, &[]);
             }
             None => pass.set_pipeline(&self.pipeline),
         }
@@ -225,7 +225,7 @@ struct HorizonWeatherOut {
 ";
 
 /// The shader of a native pack's weather stage `source`.
-fn native_source(source: &str, api: horizon_shader_api::Api) -> String {
+fn native_source(source: &str, api: horizon_render_pipeline::Api) -> String {
     format!(
         "{source}\n// Horizon's weather (entity.wgsl)\n{}{}{NATIVE_ENTRIES}",
         super::wgsl_prefix::prefixed(&super::entity_shader(), "horizon_entity_"),
@@ -245,7 +245,7 @@ pub(super) fn native_pipeline(
     stage: &horizon_shader_api::check::CheckedStage,
     constants: &[(String, f64)],
 ) -> Result<wgpu::RenderPipeline, String> {
-    use horizon_shader_api::stages::GROUP;
+    use horizon_render_pipeline::stages::GROUP;
     let text = native_source(&stage.source, frame.api);
     let module = naga::front::wgsl::parse_str(&text)
         .map_err(|e| format!("{}: {}", stage.file, e.emit_to_string(&text)))?;
@@ -322,7 +322,7 @@ mod tests {
 
     #[test]
     fn a_native_weather_stage_validates() {
-        use horizon_shader_api::{Api, stages::StageKind};
+        use horizon_render_pipeline::{Api, StageKind};
         for api in [Api::V0_1, Api::V0_2] {
             let source = StageKind::Weather.prelude(api)
                 + "fn weather(input: WeatherInput) -> vec4<f32> {\n    \
