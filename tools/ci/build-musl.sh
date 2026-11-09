@@ -15,7 +15,7 @@ export RUSTFLAGS='-C target-feature=-crt-static'
 target=x86_64-unknown-linux-musl
 bin="target/$target/release"
 cargo build --release --locked --target "$target" \
-  -p horizon-client -p horizon-client-lib --bin horizon-client --bin horizon-ctl \
+  -p horizon-client --bin horizon-client -p horizon-ctl --bin horizon-ctl \
   -p horizon-prepare --bin horizon-prepare -p horizon-server --bin horizon-server
 
 set -- "$bin/horizon-client" "$bin/horizon-ctl" "$bin/horizon-prepare" "$bin/horizon-server"
