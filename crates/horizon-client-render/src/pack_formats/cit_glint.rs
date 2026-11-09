@@ -51,8 +51,8 @@ pub fn stack_glint(
     // CIT Resewn: any layer left asking for vanilla's glint keeps it, and the global
     // `useGlint=false` removes it everywhere, as OptiFine's doc says too. `cap=0` leaves no
     // custom layer, and vanilla's glint only if the pack's `useGlint` allows it.
-    let vanilla = global.use_glint
-        && (layers.is_empty() || layers.iter().any(|&i| rules[i].glint.use_glint));
+    let vanilla =
+        global.use_glint && (layers.is_empty() || layers.iter().any(|&i| rules[i].glint.use_glint));
     // CIT Resewn: shares are against every enchantment of the stack, not only those the
     // layers name.
     let levels = enchantments.iter().map(|(_, level)| *level as f32);
