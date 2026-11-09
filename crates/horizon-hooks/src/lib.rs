@@ -23,6 +23,7 @@ pub mod look;
 pub mod pages;
 mod registry;
 pub mod settings;
+pub mod tunnel;
 
 use containers::{Container, SlotId};
 use registry::Registry;
@@ -88,6 +89,13 @@ pub trait Hooks: Sync {
     }
     /// Draws over the panel, from its top left corner, after the slots and before the tooltip.
     fn container_draw(&self, _c: &dyn Container, _canvas: &mut dyn hud::Canvas) {}
+
+    /// The resolver of `friend:` addresses this crate offers ([`tunnel`]); the first hook that
+    /// offers one is used. Asked on the network thread when joining and on the game thread when
+    /// an address is shown, never per frame.
+    fn tunnel(&self) -> Option<&dyn tunnel::Resolver> {
+        None
+    }
 }
 
 /// What [`Hooks::started`] gets.
@@ -329,6 +337,11 @@ pub mod engine {
             }
         }
         plan
+    }
+
+    /// [`Hooks::tunnel`]: the first registered hook's resolver.
+    pub fn tunnel() -> Option<&'static dyn tunnel::Resolver> {
+        all().iter().find_map(|hooks| hooks.tunnel())
     }
 }
 

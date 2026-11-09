@@ -12,11 +12,13 @@ use horizon_platform::hooks::{self, Hooks};
 use horizon_platform::{pages, settings};
 
 /// Every Horizon part in the game, in the order its hooks run.
-const PARTS: [&dyn Hooks; 3] = [
+const PARTS: [&dyn Hooks; 4] = [
     // The anonymous "I'm playing" ping.
     &horizon_heartbeat::HOOKS,
     // Auto-reconnect (docs/extras.md).
     &horizon_reconnect::HOOKS,
+    // Play with Friends: `friend:` addresses join through its tunnel.
+    &horizon_friends::game::HOOKS,
     // Mouse Tweaks and sorting on container screens (docs/extras.md).
     &horizon_inventory_tweaks::HOOKS,
 ];
