@@ -113,36 +113,25 @@ fn one_biome_shortcut_blends_like_the_full_square() {
     }
 }
 
-/// A pack root holding `files` (path, bytes), for colormap tests.
-fn pack(files: &[(&str, Vec<u8>)]) -> std::path::PathBuf {
-    static NEXT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
-    let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-    let root = std::env::temp_dir().join(format!(
-        "horizon-mesher-colormap-{}-{n}",
-        std::process::id()
-    ));
-    for (path, bytes) in files {
-        let path = root.join(path);
-        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
-        std::fs::write(path, bytes).unwrap();
-    }
-    root
+/// A pack colormap that colours each biome by `color`; `None` keeps the block's own tint (a
+/// transparent pixel).
+struct ByBiome {
+    blend: bool,
+    color: fn(&crate::biome::BiomeInfo) -> Option<u32>,
 }
 
-/// A one-row PNG of RGBA pixels.
-fn png_row(pixels: &[[u8; 4]]) -> Vec<u8> {
-    let mut out = Vec::new();
-    let mut encoder = png::Encoder::new(&mut out, pixels.len() as u32, 1);
-    encoder.set_color(png::ColorType::Rgba);
-    encoder.set_depth(png::BitDepth::Eight);
-    let mut writer = encoder.write_header().unwrap();
-    writer.write_image_data(&pixels.concat()).unwrap();
-    writer.finish().unwrap();
-    out
+impl crate::environment::BlockColormap for ByBiome {
+    fn biome_blend(&self) -> bool {
+        self.blend
+    }
+
+    fn sample(&self, _at: [i32; 3], biome: &crate::biome::BiomeInfo) -> Option<u32> {
+        (self.color)(biome)
+    }
 }
 
 #[test]
-fn a_polytone_colormap_tints_by_biome_and_keeps_the_biome_colour_where_transparent() {
+fn a_pack_colormap_tints_by_biome_and_keeps_the_biome_colour_where_transparent() {
     let biomes = Biomes::from_jsons(&[
         (
             "minecraft:plains",
@@ -153,21 +142,11 @@ fn a_polytone_colormap_tints_by_biome_and_keeps_the_biome_colour_where_transpare
             serde_json::json!({"effects": {"water_color": 0x32A598}}),
         ),
     ]);
-    // Left to right: transparent, red. Desert maps to column 1, plains (unnamed) to column 0.
-    let root = pack(&[
-        (
-            "assets/mypack/polytone/colormaps/water.png",
-            png_row(&[[0, 0, 0, 0], [255, 0, 0, 255]]),
-        ),
-        (
-            "assets/mypack/polytone/colormaps/water.json",
-            br#"{"x_axis": "biome_id", "y_axis": 0, "biome_id_mapper": {"minecraft:desert": 1, "texture_size": 2}}"#
-                .to_vec(),
-        ),
-    ]);
-    let colormap = crate::pack_formats::environment::Colormap::load(&root, "mypack:water");
-    let colormaps: Vec<Arc<dyn crate::environment::BlockColormap>> =
-        vec![Arc::new(colormap.unwrap())];
+    // Red in the desert, transparent elsewhere.
+    let colormaps: Vec<Arc<dyn crate::environment::BlockColormap>> = vec![Arc::new(ByBiome {
+        blend: true,
+        color: |b| (b.name == "minecraft:desert").then_some(0xFFFF_0000),
+    })];
     for (biome, expected) in [(1, 0xFF_0000), (0, 0x3F_76E4)] {
         let chunks: Vec<Vec<Chunk>> = (0..3)
             .map(|rz| (0..3).map(|rx| filled(rx - 1, rz - 1, biome)).collect())
@@ -179,7 +158,6 @@ fn a_polytone_colormap_tints_by_biome_and_keeps_the_biome_colour_where_transpare
         tints.water_colormap = Some(0);
         assert_eq!(tints.water(3, 4, 5), expected, "biome {biome}");
     }
-    std::fs::remove_dir_all(root).unwrap();
 }
 
 #[test]
@@ -195,26 +173,13 @@ fn a_biome_colormap_blends_over_a_biome_edge_as_the_vanilla_water_tint_does() {
             serde_json::json!({"effects": {"water_color": desert_water}}),
         ),
     ]);
-    let rgba = |c: u32| [(c >> 16) as u8, (c >> 8) as u8, c as u8, 255];
-    // Each biome's column holds its own water colour, so the blended map must give vanilla's
-    // blended water tint (ClientLevel.calculateBlockTint) everywhere.
-    let colormap = |blend: &str| {
-        let json = format!(
-            r#"{{"x_axis": "biome_id", "y_axis": 0, {blend}
-                "biome_id_mapper": {{"minecraft:desert": 1, "texture_size": 2}}}}"#
-        );
-        let root = pack(&[
-            (
-                "assets/mypack/polytone/colormaps/water.png",
-                png_row(&[rgba(plains_water), rgba(desert_water)]),
-            ),
-            (
-                "assets/mypack/polytone/colormaps/water.json",
-                json.into_bytes(),
-            ),
-        ]);
-        let map = crate::pack_formats::environment::Colormap::load(&root, "mypack:water").unwrap();
-        std::fs::remove_dir_all(root).unwrap();
+    // Each biome takes its own water colour, so the blended map must give vanilla's blended
+    // water tint (ClientLevel.calculateBlockTint) everywhere.
+    let colormap = |blend: bool| {
+        let map = ByBiome {
+            blend,
+            color: |b| Some(0xFF00_0000 | b.water),
+        };
         vec![Arc::new(map) as Arc<dyn crate::environment::BlockColormap>]
     };
     let (desert, plains) = (biomes.id("minecraft:desert"), biomes.id("minecraft:plains"));
@@ -228,8 +193,8 @@ fn a_biome_colormap_blends_over_a_biome_edge_as_the_vanilla_water_tint_does() {
         .collect();
     let region: [[Option<&Chunk>; 3]; 3] =
         std::array::from_fn(|rz| std::array::from_fn(|rx| Some(&chunks[rz][rx])));
-    let blended = colormap("");
-    let unblended = colormap(r#""biome_blend": false,"#);
+    let blended = colormap(true);
+    let unblended = colormap(false);
     let mut edge_differs = false;
     for radius in [1, 3] {
         let tints = || {
