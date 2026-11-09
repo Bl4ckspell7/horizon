@@ -8,14 +8,24 @@
 //! crate.
 #![forbid(unsafe_code)]
 
-use horizon_platform::hooks::{self, Hooks};
+use horizon_platform::{
+    hooks::{self, Hooks},
+    pages::{self, Page},
+};
 
 /// Every Horizon part in the game, in the order its hooks run.
 const PARTS: [&dyn Hooks; 2] = [
     // The anonymous "I'm playing" ping.
     &horizon_heartbeat::HOOKS,
-    // Play with Friends: `friend:` addresses join through its tunnel.
+    // Play with Friends: `friend:` addresses join through its tunnel, and the open world is
+    // shared behind an invite code.
     &horizon_friends::game::HOOKS,
+];
+
+/// The pages Horizon's parts add to the game's menus.
+const PAGES: [&dyn Page; 1] = [
+    // Play with Friends, what the pause menu's Friends icon opens.
+    &horizon_friends::game::PAGE,
 ];
 
 /// Registers Horizon's in-game parts with the game. The executable calls it before it runs the
@@ -25,6 +35,11 @@ pub fn register() {
         if let Err(e) = hooks::register(part) {
             // The executable registered after starting the game: a bug, not a player's problem.
             log::warn!("Horizon: an in-game part did not register: {e}");
+        }
+    }
+    for page in PAGES {
+        if let Err(e) = pages::register(page) {
+            log::warn!("Horizon: a page did not register: {e}");
         }
     }
 }
