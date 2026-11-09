@@ -27,7 +27,6 @@ horizon-optifine = { path = "../horizon-optifine" }
 horizon-pack-options = { path = "../horizon-pack-options" }
 horizon-polytone = { path = "../horizon-polytone" }
 horizon-protocol = { path = "../horizon-protocol" }
-horizon-render-pipeline = { path = "../horizon-render-pipeline" }
 horizon-shader-api = { path = "../horizon-shader-api" }
 horizon-shaders = { path = "../horizon-shaders" }
 horizon-system = { path = "../horizon-system" }
