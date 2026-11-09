@@ -18,6 +18,7 @@
 #![forbid(unsafe_code)]
 
 pub mod hud;
+pub mod look;
 pub mod pages;
 mod registry;
 pub mod settings;

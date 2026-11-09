@@ -60,6 +60,12 @@ pub mod pages {
     pub use horizon_hooks::pages::{Act, Label, Page, Place, Row, register};
 }
 
+/// How the game draws a few things a crate may change, per player (`horizon_hooks::look`):
+/// vanilla's until set.
+pub mod look {
+    pub use horizon_hooks::look::{Chat, Frame, Look, set};
+}
+
 /// Drawing on the HUD (docs/layers.md, "Platform registries").
 pub mod hud {
     pub use horizon_hooks::hud::{Canvas, Corner, Layer, register};
