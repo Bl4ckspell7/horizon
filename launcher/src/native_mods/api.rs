@@ -505,7 +505,7 @@ mod tests {
 
     #[test]
     fn generated_main_uses_the_games_allocator() {
-        let game = include_str!("../../../crates/horizon-client/src/main.rs");
+        let game = include_str!("../../../crates/horizon-game/src/main.rs");
         let allocator = game
             .lines()
             .find(|line| line.starts_with("static ALLOCATOR:"))
