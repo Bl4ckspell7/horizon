@@ -194,7 +194,11 @@ pub fn keep_benchmark(home: &Path, report: &horizon_bench::Report) {
     };
     if let Err(e) = outbox::push(
         home,
-        &Item::new(Source::Game, crate::crash::build(), Payload::Benchmark(data)),
+        &Item::new(
+            Source::Game,
+            crate::crash::build(),
+            Payload::Benchmark(data),
+        ),
     ) {
         log::warn!("Horizon: could not keep the benchmark report to send: {e}");
     }
@@ -410,12 +414,7 @@ mod tests {
             )]
         );
         let json = serde_json::to_string(&item).unwrap();
-        for private in [
-            "Castle Ana",
-            "Ana's Base",
-            "example.net",
-            "Ana's pack",
-        ] {
+        for private in ["Castle Ana", "Ana's Base", "example.net", "Ana's pack"] {
             assert!(!json.contains(private), "{private} in {json}");
         }
         assert!(item.validate().is_ok());
