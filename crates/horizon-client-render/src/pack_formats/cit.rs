@@ -4,7 +4,7 @@
 //! engine gets them as [`crate::cit::Rule`]s.
 
 use super::cit_glint::{load_global, stack_glint};
-use crate::cit::{self as engine, CitRules, Matcher as _};
+use crate::cit::{self as engine, CitRules};
 use crate::cit_glint::StackGlint;
 use horizon_client_core::component::name_text;
 use horizon_client_core::scoreboard::comp_text;
