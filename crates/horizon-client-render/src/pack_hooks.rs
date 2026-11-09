@@ -113,6 +113,18 @@ pub trait PackFormats: Send + Sync {
 
     /// The creative tab modifiers of the packs merged at `root`, in load order.
     fn creative_tab_modifiers(&self, _root: &Path) -> Vec<Box<dyn TabModifier>> {
+    }
+
+    /// The colormaps the overlay puts in place of vanilla's biome colour functions, given its
+    /// `modifiers` ([`Self::colormap_targets`]).
+    fn biome_colormaps(
+        &self,
+        _root: &Path,
+        _modifiers: &[crate::environment::ColormapTarget],
+    ) -> Vec<(
+        crate::environment::BiomeFunction,
+        Arc<dyn crate::environment::BlockColormap>,
+    )> {
         Vec::new()
     }
 
@@ -152,6 +164,11 @@ pub trait PackFormats: Send + Sync {
         _text: &[u8],
         _options: &horizon_pack_options::Configs,
     ) -> Option<Vec<u8>> {
+        None
+    }
+
+    /// The durability bar colours the overlay sets by item, if any.
+    fn item_bars(&self, _root: &Path) -> Option<Arc<dyn crate::pack_palette::ItemBars>> {
         None
     }
 }
