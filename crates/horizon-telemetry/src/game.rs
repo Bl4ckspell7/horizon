@@ -396,12 +396,7 @@ mod tests {
             )]
         );
         let json = serde_json::to_string(&item).unwrap();
-        for private in [
-            "Castle Ana",
-            "Ana's Base",
-            "example.net",
-            "Ana's pack",
-        ] {
+        for private in ["Castle Ana", "Ana's Base", "example.net", "Ana's pack"] {
             assert!(!json.contains(private), "{private} in {json}");
         }
         assert!(item.validate().is_ok());
