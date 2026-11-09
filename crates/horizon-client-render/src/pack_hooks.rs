@@ -101,6 +101,16 @@ pub trait PackFormats: Send + Sync {
         None
     }
 
+    /// The screen sprite modifiers of the packs merged at `root`, for the GUI sprites among
+    /// `keys` (the atlas's).
+    fn sprite_modifiers(
+        &self,
+        _root: &Path,
+        _keys: &mut dyn Iterator<Item = &String>,
+    ) -> Option<crate::hud::sprite_modifiers::SpriteModifiers> {
+        None
+    }
+
     /// The options the pack (its base, not its overlays) declares, at their defaults.
     fn pack_options(
         &self,
