@@ -6,7 +6,6 @@
 //! decoded packets with these threads, so a world that is not open to the
 //! network pays nothing.
 mod advancements;
-pub mod anticheat;
 pub mod arrivals;
 pub mod attributes;
 pub mod border;
@@ -36,6 +35,7 @@ mod recording;
 pub mod scoreboard;
 mod sound_order;
 pub mod tracking;
+pub mod watch;
 pub mod waypoints;
 
 pub use conn::{Holding, PlayerSender, flush_all};
