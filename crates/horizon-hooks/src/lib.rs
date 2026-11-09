@@ -57,6 +57,23 @@ pub trait Hooks: Sync {
     /// The window's world stopped being open to LAN: Open to LAN's stop, or the player left the
     /// world. Called at that moment, by the window's own player only.
     fn lan_closed(&self) {}
+
+    /// The `horizon-ctl` commands this crate answers in the game: their group, as `hello` lists
+    /// it, and the lines `help` adds for them.
+    fn control_commands(&self) -> Option<(&'static str, &'static [&'static str])> {
+        None
+    }
+
+    /// A `horizon-ctl` command (its words) on the window's game: `Some` with the answer as JSON
+    /// text, or why it failed, when it is this crate's. The first hook that answers wins; the
+    /// hooks are asked before most of the engine's own commands.
+    fn control(
+        &self,
+        _words: &[&str],
+        _world: &mut dyn share::ShareView,
+    ) -> Option<Result<String, String>> {
+        None
+    }
 }
 
 /// What [`Hooks::started`] gets.
@@ -165,6 +182,19 @@ pub mod engine {
         for hooks in all() {
             hooks.lan_closed();
         }
+    }
+
+    /// [`Hooks::control`]: the first hook's answer.
+    pub fn control(
+        words: &[&str],
+        world: &mut dyn share::ShareView,
+    ) -> Option<Result<String, String>> {
+        all().iter().find_map(|hooks| hooks.control(words, world))
+    }
+
+    /// [`Hooks::control_commands`] of every hook, in registration order.
+    pub fn control_commands() -> impl Iterator<Item = (&'static str, &'static [&'static str])> {
+        all().iter().filter_map(|hooks| hooks.control_commands())
     }
 
     /// [`Hooks::tunnel`]: the first registered hook's resolver.
