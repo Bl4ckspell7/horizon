@@ -960,7 +960,7 @@ pub struct Scene<'a> {
     pub world: &'a World,
     pub sprites: &'a HashMap<String, Rect>,
     /// The packs' OptiFine emissive overlays of the sprites.
-    pub emissive: &'a horizon_optifine::emissive::Emissive,
+    pub emissive: &'a crate::entity_textures::Emissive,
     /// Atlas sprites that contain a texel with fractional alpha. Static
     /// geometry stays on the cutout pipeline; these models keep the blended
     /// entity path so resource packs retain their alpha behavior.

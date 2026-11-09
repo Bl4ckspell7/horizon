@@ -40,6 +40,11 @@ pub trait PackFormats: Send + Sync {
         None
     }
 
+    /// The overlay's entity texture variants, blinks and emissive overlays.
+    fn entity_textures(&self, _root: &Path) -> Option<crate::entity_textures::EntityTextures> {
+        None
+    }
+
     /// The sky layers the overlay draws over the vanilla sky, if it has any.
     fn custom_sky(&self, _root: &Path) -> Option<Arc<dyn crate::custom_sky::SkyLayers>> {
         None

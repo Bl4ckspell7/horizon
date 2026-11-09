@@ -43,6 +43,7 @@ pub mod custom_sky;
 pub mod datapack;
 pub mod dynamic_light;
 pub mod effects;
+pub mod entity_textures;
 pub mod environment;
 pub mod extras;
 pub(crate) mod extras_ui;

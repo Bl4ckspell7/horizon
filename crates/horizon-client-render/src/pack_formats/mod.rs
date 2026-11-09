@@ -9,6 +9,7 @@ mod colors;
 mod connected;
 mod ctm;
 mod custom_sky;
+mod entity_textures;
 mod fusion;
 
 use std::path::Path;
@@ -41,6 +42,10 @@ impl PackFormats for Formats {
 
     fn item_textures(&self, root: &Path) -> Option<crate::cit::CitRules> {
         Some(cit::load(root))
+    }
+
+    fn entity_textures(&self, root: &Path) -> Option<crate::entity_textures::EntityTextures> {
+        Some(entity_textures::load(root))
     }
 
     fn custom_sky(&self, root: &Path) -> Option<Arc<dyn crate::custom_sky::SkyLayers>> {
