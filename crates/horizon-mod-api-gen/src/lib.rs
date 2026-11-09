@@ -780,9 +780,17 @@ pub fn fill_hooks(root: &Path) -> Result<(), String> {
 fn render_hooks_current(root: &Path, render: &str) -> Result<(), String> {
     let path = root.join(RENDER_HOOKS);
     let committed = fs::read_to_string(&path).map_err(|e| format!("{}: {e}", path.display()))?;
+    // rustfmt adds a trailing comma where it wraps a list (`fill_hooks` formats the file), which
+    // the generator's one-line code lacks: the same code either way.
     let tokens = |code: &str| {
         syn::parse_file(code)
-            .map(|file| file.into_token_stream().to_string())
+            .map(|file| {
+                file.into_token_stream()
+                    .to_string()
+                    .replace(" ,)", ")")
+                    .replace(" , }", " }")
+                    .replace(" ,]", "]")
+            })
             .map_err(|e| format!("{}: {e}", path.display()))
     };
     if tokens(&committed)? == tokens(render)? {
@@ -1375,6 +1383,16 @@ mod tests {
         )
         .unwrap();
         super::render_hooks_current(&root, code).unwrap();
+        // rustfmt's trailing commas, where it wraps a long list, change nothing.
+        let wrapped = "/// Drawn.\npub trait RenderHooks { fn drawn(&self, a: u8, b: u8) {} }\n\
+                       pub fn go() { let e = E { a: 1, b: [2, 3] }; }\n";
+        std::fs::write(
+            &path,
+            "/// Drawn.\npub trait RenderHooks {\n    fn drawn(&self, a: u8, b: u8,) {}\n}\n\
+             pub fn go() {\n    let e = E {\n        a: 1,\n        b: [2, 3,],\n    };\n}\n",
+        )
+        .unwrap();
+        super::render_hooks_current(&root, wrapped).unwrap();
         let changed = code.replace("drawn(&self)", "drawn(&self, partial: f32)");
         assert!(
             super::render_hooks_current(&root, &changed)
