@@ -1858,6 +1858,7 @@ name = "horizon-render-pipeline"
 version = "0.1.0"
 dependencies = [
  "bytemuck",
+ "naga",
 ]
 
 [[package]]

@@ -13,7 +13,7 @@ use std::collections::BTreeSet;
 use std::fmt::Write;
 
 use super::scan::{QUALIFIERS, STORAGE, significant};
-use super::{Error, GbuffersInputs, Program, Target};
+use super::{Error, Program, Target};
 use crate::Preprocessed;
 use crate::macros::lex;
 
@@ -591,6 +591,7 @@ fn strip_storage(text: &mut [String], tokens: &[&str], range: std::ops::Range<us
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::GbuffersInputs;
     use crate::pack::tests::zip;
     use crate::{Macros, Pack, preprocess};
 
