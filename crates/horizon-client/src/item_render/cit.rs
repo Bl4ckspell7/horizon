@@ -387,7 +387,7 @@ mod tests {
 
     /// A stick, a bow's frames and a potion; with `cit`, rules over them.
     fn root(name: &str, cit: bool) -> PathBuf {
-        crate::pack_formats::install();
+        horizon_pack_formats::install();
         let root = std::env::temp_dir().join(format!("horizon-cit-{name}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
         let write = |rel: &str, text: &str| {
@@ -721,7 +721,7 @@ mod tests {
 
     fn armor_rules(text: &str) -> CitRules {
         let path = "assets/minecraft/optifine/cit/worn.properties";
-        crate::pack_formats::cit::parse_rules(&[(path, text)], "")
+        horizon_pack_formats::pack_formats::cit::parse_rules(&[(path, text)], "")
     }
 
     #[test]

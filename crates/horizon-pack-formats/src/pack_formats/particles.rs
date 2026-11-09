@@ -1536,7 +1536,7 @@ impl CustomParticles for Particles {
 mod tests {
     use super::*;
     use crate::chunk::Chunk;
-    use crate::particles::Sprite;
+    use crate::particle_test_support::{EngineInsides, ParticleInsides, blank};
     use crate::world::World;
     use glam::DVec3;
     use horizon_world::DATA_VERSION;
@@ -1616,8 +1616,8 @@ mod tests {
 
     fn engine(registry: Registry) -> ParticleEngine {
         let mut engine = ParticleEngine::new(Path::new(""), &HashMap::new(), &HashSet::new());
-        engine.mod_sets.insert("test:spark".into(), (0, None));
-        engine.set_sprites.push(vec![10, 11, 12]);
+        engine.add_mod_set("test:spark", 0);
+        engine.set_sprites().push(vec![10, 11, 12]);
         engine.camera = [1.0, 65.0, 1.0];
         engine.set_polytone(Some(Arc::new(Particles(Arc::new(registry)))));
         engine
@@ -1689,16 +1689,16 @@ mod tests {
         let mut engine = engine(Registry::read(&root, Default::default(), blocks));
         // Air has no emitters; the torch fires its first emitter only.
         engine.polytone_animate(&level, [1, 64, 2]);
-        assert!(engine.pending.is_empty());
+        assert!(engine.pending().is_empty());
         engine.polytone_animate(&level, [1, 64, 1]);
-        assert_eq!(engine.pending.len(), 1);
-        let p = &engine.pending[0];
-        assert!(p.controller.is_some());
+        assert_eq!(engine.pending().len(), 1);
+        let p = &engine.pending()[0];
+        assert!(p.has_controller());
         assert_eq!(p.position, [1.5, 65.0, 1.5]);
         // The initializer's values, the emitter's red over its own.
         assert_eq!((p.lifetime, p.size), (10, 0.5));
         assert_eq!(&p.rgba[..2], &[0.75, 0.5]);
-        assert!(matches!(p.sprite, Sprite::Index(10)));
+        assert!(p.sprite_index() == Some(10));
         std::fs::remove_dir_all(root).unwrap();
     }
 
@@ -1728,11 +1728,11 @@ mod tests {
         };
         let mut engine = engine(Registry::read(&root, Default::default(), blocks));
         engine.polytone_animate(&level, [1, 64, 1]);
-        let p = engine.pending.pop().unwrap();
+        let p = engine.pending().pop().unwrap();
         // Dark: the floor, 8 (light coordinates count 16 a level). The sky light is the world's.
-        assert_eq!(p.light_coords(0.0, 240, 0), (240, 128));
+        assert_eq!(p.light_at(0.0, 240, 0), (240, 128));
         // A brighter block light is kept.
-        assert_eq!(p.light_coords(0.0, 0, 208), (0, 208));
+        assert_eq!(p.light_at(0.0, 0, 208), (0, 208));
         std::fs::remove_dir_all(root).unwrap();
     }
 
@@ -1750,17 +1750,17 @@ mod tests {
         };
         let mut engine = engine(Registry::read(&root, Default::default(), blocks));
         engine.polytone_animate(&level, [1, 64, 1]);
-        let mut p = engine.pending.pop().unwrap();
+        let mut p = engine.pending().pop().unwrap();
         // `dx` is the emitter's named custom each tick: two blocks east per tick.
         for tick in 1..=3 {
-            engine.tick_particle(&mut p, &level);
+            engine.tick_one(&mut p, &level);
             assert_eq!(p.position[0], 1.5 + 2.0 * f64::from(tick));
-            assert!(!p.removed);
+            assert!(!p.is_removed());
         }
         // Through the sprite set over its life: age 3 of 10 over 3 sprites.
-        assert!(matches!(p.sprite, Sprite::Index(10)));
-        engine.tick_particle(&mut p, &level);
-        assert!(p.removed, "removed once o.age >= 4");
+        assert!(p.sprite_index() == Some(10));
+        engine.tick_one(&mut p, &level);
+        assert!(p.is_removed(), "removed once o.age >= 4");
         std::fs::remove_dir_all(root).unwrap();
     }
 
@@ -1800,18 +1800,18 @@ mod tests {
         let feet = [1.0, 64.0, 1.0];
         // In the air the chance is 0.
         engine.polytone_entity(&level, "minecraft:player", feet);
-        assert!(engine.pending.is_empty());
+        assert!(engine.pending().is_empty());
         frame.write().unwrap().player_on_ground = true;
         engine.polytone_entity(&level, "minecraft:zombie", feet);
         // Beyond the default 32 blocks from the camera.
         engine.polytone_entity(&level, "minecraft:player", [1.0, 64.0, 40.0]);
-        assert!(engine.pending.is_empty());
+        assert!(engine.pending().is_empty());
         engine.polytone_entity(&level, "minecraft:player", feet);
-        assert_eq!(engine.pending.len(), 1);
-        assert_eq!(engine.pending[0].position, [2.0, 66.0, 1.0]);
+        assert_eq!(engine.pending().len(), 1);
+        assert_eq!(engine.pending()[0].position, [2.0, 66.0, 1.0]);
         // `limit` 1: no second one while the first lives.
         engine.polytone_entity(&level, "minecraft:player", feet);
-        assert_eq!(engine.pending.len(), 1);
+        assert_eq!(engine.pending().len(), 1);
         std::fs::remove_dir_all(root).unwrap();
     }
 
@@ -1851,7 +1851,7 @@ mod tests {
         let registry = Registry::read(&root, Default::default(), blocks);
         let mut engine = engine(registry);
         engine.polytone_entity(&level, "minecraft:player", [1.0, 64.0, 1.0]);
-        let mut xs: Vec<f64> = engine.pending.iter().map(|p| p.position[0]).collect();
+        let mut xs: Vec<f64> = engine.pending().iter().map(|p| p.position[0]).collect();
         xs.sort_by(f64::total_cmp);
         assert_eq!(xs, [1.0, 1.5, 4.0]);
         std::fs::remove_dir_all(root).unwrap();
@@ -1891,10 +1891,10 @@ mod tests {
             w: 16,
             h: 16,
         };
-        engine.rects = vec![Some(rect); 13];
+        *engine.rects() = vec![Some(rect); 13];
         engine.polytone_entity(&level, "minecraft:player", [1.0, 64.0, 1.0]);
         engine.tick(&level);
-        let p = engine.particles.last().unwrap();
+        let p = engine.particles_mut().last().unwrap();
         // The camera 5 blocks south, at the particle's height.
         let camera = DVec3::new(p.position[0], p.position[1], p.position[2] + 5.0);
         let mut out = Vec::new();
@@ -1944,7 +1944,7 @@ mod tests {
             w: 16,
             h: 16,
         };
-        engine.rects = vec![Some(rect); 13];
+        *engine.rects() = vec![Some(rect); 13];
         engine.polytone_entity(&level, "minecraft:player", [1.0, 64.0, 1.0]);
         engine.tick(&level);
         let mut out = Vec::new();
@@ -2003,9 +2003,7 @@ mod tests {
             engine.tick(&level);
         }
         let rays = engine
-            .particles
-            .iter()
-            .chain(&engine.pending)
+            .live()
             .filter(|p| p.polytone_type.as_deref() == Some("test:ray"))
             .count();
         assert_eq!(rays, 1);
@@ -2056,11 +2054,11 @@ mod tests {
             h: 16,
         };
         engine
-            .atlas
+            .atlas()
             .insert("test:particle/rain".into(), (rect, true));
         engine.polytone_entity(&level, "minecraft:player", [1.0, 64.0, 1.0]);
         // No engine particle: a record each; the rain drawn as its area's three quads.
-        assert!(engine.pending.is_empty());
+        assert!(engine.pending().is_empty());
         assert_eq!(engine.polytone_gpu_records(), 2);
         let mut out = Vec::new();
         engine.render(
@@ -2120,19 +2118,19 @@ mod tests {
             serde_json::json!({"effects": {"foliage_color": 0x336699}}),
         )])));
         let mut engine = ParticleEngine::new(Path::new(""), &HashMap::new(), &HashSet::new());
-        engine.mod_sets.insert("test:leaf".into(), (0, None));
-        engine.set_sprites.push(vec![10]);
+        engine.add_mod_set("test:leaf", 0);
+        engine.set_sprites().push(vec![10]);
         engine.camera = [1.0, 65.0, 1.0];
         engine.set_polytone(Some(Arc::new(Particles(registry.clone()))));
         engine.polytone_entity(&level, "minecraft:player", [1.0, 64.0, 1.0]);
-        let mut p = engine.pending.pop().unwrap();
+        let mut p = engine.pending().pop().unwrap();
         let tinted = [
             0x33 as f32 / 255.0,
             0.5 * 0x66 as f32 / 255.0,
             0x99 as f32 / 255.0,
         ];
         for _ in 0..2 {
-            engine.tick_particle(&mut p, &level);
+            engine.tick_one(&mut p, &level);
             // Multiplied into its own colour, every tick, without compounding.
             assert_eq!(&p.rgba[..3], &tinted);
         }
@@ -2153,7 +2151,7 @@ mod tests {
         )]);
         let registry = Registry::read(&root, Default::default(), blocks());
         let colour = |kind: &str| {
-            let mut p = Particle::blank(ParticleType::Flame, [0.0; 3]);
+            let mut p = blank(ParticleType::Flame, [0.0; 3]);
             modify(&registry, kind, None, &mut p);
             p.rgba
         };
@@ -2176,7 +2174,7 @@ mod tests {
         ]);
         let registry = Registry::read(&root, Default::default(), blocks());
         let flame = || {
-            let mut p = Particle::blank(ParticleType::Flame, [0.0; 3]);
+            let mut p = blank(ParticleType::Flame, [0.0; 3]);
             p.size = 0.1;
             p.lifetime = 10;
             p.velocity = [0.25, f64::from(0.1f32), -0.5];
@@ -2234,15 +2232,15 @@ mod tests {
         };
         let mut engine = engine(Registry::read(&root, Default::default(), blocks));
         engine.polytone_entity(&level, "minecraft:player", [1.5, 70.0, 1.5]);
-        let mut p = engine.pending.pop().unwrap();
+        let mut p = engine.pending().pop().unwrap();
         for _ in 0..10 {
-            engine.tick_particle(&mut p, &level);
-            assert!(!p.removed);
+            engine.tick_one(&mut p, &level);
+            assert!(!p.is_removed());
         }
         // Stopped by a collision, it goes.
         p.stopped_by_collision = true;
-        engine.tick_particle(&mut p, &level);
-        assert!(p.removed);
+        engine.tick_one(&mut p, &level);
+        assert!(p.is_removed());
         std::fs::remove_dir_all(root).unwrap();
     }
 
@@ -2254,21 +2252,21 @@ mod tests {
         )]);
         let mut engine = engine(Registry::read(&root, Default::default(), blocks()));
         // The vanilla flame's sprite set (what the pack's particles/flame.json lists).
-        engine.sets.insert(ParticleType::Flame, 1);
-        engine.set_sprites.push(vec![20, 21]);
+        engine.sets().insert(ParticleType::Flame, 1);
+        engine.set_sprites().push(vec![20, 21]);
         engine.create(
             &ParticleOptions::simple(ParticleType::Flame),
             [1.0, 65.0, 1.0],
             [0.0; 3],
         );
-        assert_eq!(engine.pending.len(), 1);
-        let p = &engine.pending[0];
+        assert_eq!(engine.pending().len(), 1);
+        let p = &engine.pending()[0];
         assert!(
-            p.controller.is_some(),
+            p.has_controller(),
             "the pack's particle, not vanilla's flame"
         );
         assert_eq!((p.lifetime, p.size), (33, 0.75));
-        assert!(matches!(p.sprite, Sprite::Index(20)));
+        assert!(p.sprite_index() == Some(20));
         std::fs::remove_dir_all(root).unwrap();
     }
 
@@ -2319,15 +2317,15 @@ mod tests {
                 serde_json::json!({}),
             )]))
         };
-        let registry = engine.polytone.clone().unwrap();
+        let registry = engine.custom().unwrap();
         registry.set_biomes(&first("minecraft:snowy_plains"));
         engine.polytone_animate(&level, [1, 64, 1]);
-        assert!(engine.pending.is_empty(), "outside #test:warm");
+        assert!(engine.pending().is_empty(), "outside #test:warm");
         // `#test:warm` holds the desert through the nested `#test:hot`.
         registry.set_biomes(&first("minecraft:desert"));
         engine.polytone_animate(&level, [1, 64, 1]);
-        assert_eq!(engine.pending.len(), 1);
-        assert_eq!(engine.pending[0].position, [1.0, 65.0, 1.0]);
+        assert_eq!(engine.pending().len(), 1);
+        assert_eq!(engine.pending()[0].position, [1.0, 65.0, 1.0]);
         std::fs::remove_dir_all(root).unwrap();
     }
 
@@ -2345,7 +2343,7 @@ mod tests {
         ]);
         let registry = Registry::read(&root, Default::default(), blocks());
         let run = |id: &str, source: Option<&str>| {
-            let mut p = Particle::blank(ParticleType::Block, [0.0; 3]);
+            let mut p = blank(ParticleType::Block, [0.0; 3]);
             p.size = 0.1;
             p.lifetime = 10;
             modify(&registry, id, source, &mut p);

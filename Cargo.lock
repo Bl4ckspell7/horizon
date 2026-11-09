@@ -1457,6 +1457,7 @@ dependencies = [
  "horizon-mods",
  "horizon-narrator",
  "horizon-optifine",
+ "horizon-pack-formats",
  "horizon-protocol",
  "horizon-server-files",
  "horizon-shader-api",
@@ -1536,6 +1537,7 @@ dependencies = [
  "horizon-mods",
  "horizon-narrator",
  "horizon-optifine",
+ "horizon-pack-formats",
  "horizon-protocol",
  "horizon-server-files",
  "horizon-shader-api",
@@ -1589,9 +1591,7 @@ dependencies = [
  "horizon-hooks",
  "horizon-items",
  "horizon-narrator",
- "horizon-optifine",
  "horizon-pack-options",
- "horizon-polytone",
  "horizon-protocol",
  "horizon-shader-api",
  "horizon-shaders",
@@ -1684,6 +1684,7 @@ dependencies = [
  "horizon-client",
  "horizon-core",
  "horizon-mods",
+ "horizon-pack-formats",
  "horizon-threads",
  "serde_json",
  "winresource",
@@ -1813,6 +1814,26 @@ dependencies = [
  "horizon-core",
  "log",
  "regex",
+]
+
+[[package]]
+name = "horizon-pack-formats"
+version = "0.1.0"
+dependencies = [
+ "glam",
+ "horizon-assets",
+ "horizon-client-core",
+ "horizon-client-render",
+ "horizon-core",
+ "horizon-items",
+ "horizon-optifine",
+ "horizon-pack-options",
+ "horizon-polytone",
+ "horizon-world",
+ "log",
+ "miniz_oxide 0.8.9",
+ "png",
+ "serde_json",
 ]
 
 [[package]]

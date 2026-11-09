@@ -300,7 +300,7 @@ mod tests {
             std::fs::create_dir_all(path.parent().unwrap()).unwrap();
             std::fs::write(path, text).unwrap();
         }
-        crate::pack_formats::install();
+        horizon_pack_formats::install();
         let textures = crate::entity_textures::EntityTextures::load(&root).random;
         let _ = std::fs::remove_dir_all(&root);
         textures

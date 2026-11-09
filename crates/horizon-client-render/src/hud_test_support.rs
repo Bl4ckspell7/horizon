@@ -32,3 +32,26 @@ pub fn texel_at(atlas: &HudAtlas, rect: Rect, x: u32, y: u32) -> [u8; 4] {
     let at = ((py * atlas.width + px) * 4) as usize;
     atlas.pixels[at..at + 4].try_into().unwrap()
 }
+
+/// [`crate::hud`]'s Custom Item Textures pass: the textures the enabled packs' rules add beyond
+/// `packed` (name, width, height, RGBA), with their flags and whether they animate.
+#[allow(clippy::type_complexity)]
+pub fn cit_sprites(
+    root: &Path,
+    packed: &[(String, u32, u32, Vec<u8>)],
+) -> Vec<(
+    (String, u32, u32, Vec<u8>),
+    Option<crate::hud::TextureFlags>,
+    bool,
+)> {
+    crate::hud::cit_sprites(root, packed)
+}
+
+/// A resource pack as the pack list reads it ([`crate::packs`]).
+pub fn pack(
+    id: String,
+    title: crate::text::Text,
+    source: crate::packs::Source,
+) -> Option<crate::packs::Pack> {
+    crate::packs::pack(id, title, source)
+}

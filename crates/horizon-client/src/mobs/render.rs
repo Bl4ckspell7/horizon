@@ -3685,7 +3685,7 @@ mod emissive_tests {
             };
             std::fs::write(path, text).unwrap();
         }
-        crate::pack_formats::install();
+        horizon_pack_formats::install();
         let crate::entity_textures::EntityTextures {
             random,
             blinks,
@@ -3967,7 +3967,7 @@ mod random_texture_tests {
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("silverfish.properties"), "textures.1=2").unwrap();
         std::fs::write(dir.join("silverfish2.png"), "").unwrap();
-        crate::pack_formats::install();
+        horizon_pack_formats::install();
         let random = crate::entity_textures::EntityTextures::load(&root).random;
         let _ = std::fs::remove_dir_all(&root);
         MobData {

@@ -42,6 +42,7 @@
     "horizon-mod-deps": "platform",
     "horizon-mods": "platform",
     "horizon-optifine": "platform",
+    "horizon-pack-formats": "platform",
     "horizon-platform": "platform",
     "horizon-polytone": "platform",
     "horizon-port-pack": "platform",
@@ -109,8 +110,6 @@
     "horizon-client-lib -> horizon-theme",
     "horizon-client-render -> horizon-cosmetics",
     "horizon-client-render -> horizon-hdr",
-    "horizon-client-render -> horizon-optifine",
-    "horizon-client-render -> horizon-polytone",
     "horizon-client-render -> horizon-shader-api",
     "horizon-client-render -> horizon-shaders",
     "horizon-client-render -> horizon-theme"

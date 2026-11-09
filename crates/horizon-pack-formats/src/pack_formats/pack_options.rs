@@ -65,7 +65,8 @@ pub fn read(source: &Source) -> Configs {
 /// longer reach the formats).
 #[cfg(test)]
 mod pack_tests {
-    use crate::packs::{Source, build_overlay, pack};
+    use crate::hud_test_support::pack;
+    use crate::packs::{Source, build_overlay};
     use crate::text::Text;
     use std::fs;
 

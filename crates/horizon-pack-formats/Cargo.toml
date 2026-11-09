@@ -1,0 +1,29 @@
+[package]
+name = "horizon-pack-formats"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "The resource pack formats vanilla doesn't read (OptiFine's, Polytone's) on the engine's extension points (docs/layers.md)"
+
+[dependencies]
+horizon-assets = { path = "../horizon-assets" }
+horizon-client-core = { path = "../horizon-client-core" }
+horizon-client-render = { path = "../horizon-client-render" }
+horizon-core = { path = "../horizon-core" }
+horizon-items = { path = "../horizon-items" }
+horizon-optifine = { path = "../horizon-optifine" }
+horizon-pack-options = { path = "../horizon-pack-options" }
+horizon-polytone = { path = "../horizon-polytone" }
+horizon-world = { path = "../horizon-world" }
+glam = "0.30"
+log = "0.4"
+serde_json = { version = "1.0.151", features = ["raw_value"] }
+
+[dev-dependencies]
+miniz_oxide = "0.8"
+png = "0.18"
+horizon-client-render = { path = "../horizon-client-render", features = ["test-support"] }
+
+[lints]
+workspace = true

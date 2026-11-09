@@ -698,7 +698,7 @@ mod tests {
         let rule = |name: &str, text: &str| {
             let path = format!("assets/minecraft/optifine/cit/{name}.properties");
             let text = format!("type=enchantment\ntexture=glint\n{text}");
-            crate::pack_formats::cit::parse_rule(&path, &text).unwrap()
+            horizon_pack_formats::pack_formats::cit::parse_rule(&path, &text).unwrap()
         };
         let rules = [
             rule("shown", ""),

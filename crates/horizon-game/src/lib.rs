@@ -31,11 +31,13 @@ pub const MOD_API_LEVEL: [u8; horizon_mods::api_level::MARK.len()] = horizon_mod
 /// Runs the game with the hooks registered so far, and returns when it ends. Register hooks
 /// (`horizon_platform::hooks::register`) before calling it.
 pub fn main() {
-    horizon_client::entry::main();
+    main_with(Default::default());
 }
 
 /// [`main`] with native mods' hooks: the launcher's generated executable for a build with native
 /// mods calls it, so that build runs with the platform's parts too.
 pub fn main_with(mods: horizon_client::mod_api::Mods) {
+    // OptiFine's and Polytone's pack formats (docs/layers.md), before any pack loads.
+    horizon_pack_formats::install();
     horizon_client::entry::main_with(mods);
 }

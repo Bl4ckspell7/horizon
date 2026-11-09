@@ -88,7 +88,6 @@ pub mod options_fixes;
 pub mod options_ui;
 pub mod overlay;
 pub mod pack_browser;
-pub mod pack_formats;
 pub mod pack_hooks;
 pub mod pack_options_ui;
 pub mod pack_palette;
@@ -99,6 +98,8 @@ pub mod pad_cursor;
 pub mod pad_glyph;
 pub mod paged_maps;
 pub mod par;
+#[cfg(any(test, feature = "test-support"))]
+pub mod particle_test_support;
 pub mod particles;
 pub mod poi_sections;
 pub mod polytone_post;

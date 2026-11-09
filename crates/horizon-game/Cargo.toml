@@ -36,6 +36,7 @@ windows-segment-heap = ["horizon-client/windows-segment-heap"]
 horizon-client = { path = "../horizon-client", default-features = false }
 horizon-threads = { path = "../horizon-threads" }
 horizon-mods = { path = "../horizon-mods", default-features = false, features = ["index"] }
+horizon-pack-formats = { path = "../horizon-pack-formats" }
 
 [dev-dependencies]
 horizon-core = { path = "../horizon-core" }

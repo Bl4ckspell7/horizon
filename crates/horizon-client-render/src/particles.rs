@@ -1240,7 +1240,7 @@ impl<'a> ParticleLevel<'a> {
             Err(_) => d,
         }
     }
-    pub(crate) fn block_at(p: [f64; 3]) -> [i32; 3] {
+    pub fn block_at(p: [f64; 3]) -> [i32; 3] {
         [
             p[0].floor() as i32,
             p[1].floor() as i32,

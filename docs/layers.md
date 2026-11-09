@@ -189,7 +189,7 @@ is Horizon (PvP & HUD and replays, [above](#controllers-splitscreen-replays-and-
 | A call to a Mojang or Microsoft service vanilla makes | engine | `auth.rs`, `realms/`, `skins.rs`, `horizon-server-files` |
 | A place mods, ports or Horizon can hook into | engine + platform | an extension point in the engine crate, naming no type from above; its public face in the platform |
 | A mod hook, host method or mod format | platform | `horizon-mods`, the mod API (today: `game/mod_api_host.rs`, `game/native_*.rs`) |
-| A shader or resource pack format vanilla doesn't read | platform | `horizon-shaders`, `horizon-optifine`, `horizon-polytone`, or a new platform crate |
+| A shader or resource pack format vanilla doesn't read | platform | `horizon-shaders`, `horizon-optifine`, `horizon-polytone`, `horizon-pack-formats` (its glue to the engine), or a new platform crate |
 | A dedicated server option (anticheat, chat filter) | platform | `horizon-anticheat`, `horizon-chat-filter` |
 | Controller support: a device, bindings, glyphs, pad menus | platform | the pad modules, on the engine's input hooks ([Controllers](#controllers-splitscreen-replays-and-ui-pages)) |
 | Splitscreen or more players on one machine | platform | the `split` modules, on the engine's compositor |
@@ -259,6 +259,7 @@ The seam's points 1-3 above, as they work today (layer plan M5).
 | `horizon-hooks` | engine | The `Hooks` trait, `register`, and the engine's dispatch (`horizon_hooks::engine`) |
 | `horizon-platform` | platform | `horizon_platform::hooks`: `Hooks`, `Started`, `register`, without the dispatch |
 | `horizon-game` | platform | The game for an executable to start: `horizon_game::main()`, the allocator, the mod API mark. The platform's own parts register here as they leave the engine (M6). Its `horizon-client` executable is this repository's plain game, with no Horizon part: `cargo run -p horizon-game`, the harnesses, `horizon-ctl launch`, the server build and horizon-plain run it |
+| `horizon-pack-formats` | platform | OptiFine's and Polytone's pack formats on the engine's `pack_hooks::PackFormats`; `horizon_game::main()` and `main_with` install them before the engine starts, so every executable and native-mod build reads them. Engine tests that need them dev-depend on it |
 | `horizon-official` | Horizon | The official executable: `register()` adds the Horizon crates' hooks, then it runs `horizon_game::main()` |
 
 A Horizon crate that runs in the game:

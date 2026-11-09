@@ -3,8 +3,8 @@
 //! reach the formats).
 
 mod tests {
-    use crate::hud::{HudAtlas, cit_sprites};
-    use crate::hud_test_support::{texel_at, write_strip};
+    use crate::hud::HudAtlas;
+    use crate::hud_test_support::{cit_sprites, texel_at, write_strip};
     use std::collections::HashSet;
     use std::fs;
     use std::path::PathBuf;

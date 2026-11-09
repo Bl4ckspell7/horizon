@@ -660,10 +660,10 @@ mod pack_tests {
     }
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-support"))]
 impl Biomes {
     /// Biomes from their files' JSON, by name, in id order: for tests elsewhere.
-    pub(crate) fn from_jsons(entries: &[(&str, Value)]) -> Self {
+    pub fn from_jsons(entries: &[(&str, Value)]) -> Self {
         let maps = Colormaps {
             grass: Vec::new(),
             foliage: Vec::new(),
