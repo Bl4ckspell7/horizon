@@ -6,8 +6,9 @@
 //! its `.hnmod`. [`request_for`] computes it the same way on the player's computer and in CI.
 //! [`export`] is CI's side: `horizon-launcher native-build --prebuilt-out DIR FOLDER` builds the
 //! `.hnmod` files in FOLDER with the player's pipeline (the same pins, hook points and left-out
-//! mods), and writes the program, its `native-mods.json` and the request into DIR, for the workflow
-//! to sign. A set with a post-build step is never exported: the step runs on the player's game files.
+//! mods), and writes into DIR the program, its `native-mods.json`, the mods' content
+//! (`native-content/`, as an install writes it) and the request, for the workflow to sign. A set
+//! with a post-build step is never exported: the step runs on the player's game files.
 
 use crate::native_mods::{self, LeftOut, Profile, Step};
 use horizon_release_sign::native_build::{Mod, Request};
@@ -60,7 +61,8 @@ pub struct Exported {
 }
 
 /// Builds every `.hnmod` in `folder` on installed version `base` as a player's launcher would,
-/// and writes into `out` (a new folder): the program, its `native-mods.json` and [`REQUEST_FILE`].
+/// and writes into `out` (a new folder): the program, its `native-mods.json`, the mods' content
+/// and [`REQUEST_FILE`].
 /// Nothing is installed and `base` needs no prepared game files.
 pub fn export(
     base: &str,

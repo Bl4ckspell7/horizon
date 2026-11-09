@@ -744,9 +744,13 @@ decides what happens: only `horizon-mod.toml` with `assets/` and `data/` is a co
 one file: `horizon-mod.toml`, `assets/` and `data/` are its content, checked as a content mod's
 (`horizon_mods::Content`) and left out of the build, and the two manifests name the same mod id. A `.hmod` with
 native code is never a WebAssembly mod: one carrying `mod.wasm` is refused with
-`horizon_mods::index::native::WASM_GONE`. An `.hnmod` (code only) keeps loading as before. The registry keeps
-publishing native mods as `.hnmod` until launchers and the game read native `.hmod`s. Every rule of the file is in
-[api/mod-files.md](api/mod-files.md).
+`horizon_mods::index::native::WASM_GONE`. An `.hnmod` (code only) keeps loading as before. The launcher can install
+native `.hmod` files from the registry, alongside legacy `.hnmod`s. A build validates the content and snapshots it
+under its own `native-content/<id>/`, then the game layers it through the normal content loader before loading
+sounds and textures. Updating the installed archive cannot change an older build's content; rebuilding without a
+mod removes its snapshot, and turning it off excludes its content. Namespace collisions follow the content mod
+rules. Put sound events in `assets/<namespace>/sounds.json` and their files in `assets/<namespace>/sounds/*.ogg`
+at the archive's top level, not under `mixins/`. Every rule of the file is in [api/mod-files.md](api/mod-files.md).
 
 ### Post-build steps
 
@@ -1968,8 +1972,8 @@ Most players can't wait 30 to 60 minutes for a first build, so the registry buil
 and signs them (#11859). The launcher's own pipeline makes them in CI:
 `horizon-launcher native-build --prebuilt-out DIR --version <Nightly> --profile release --trust-native-code FOLDER`
 builds every `.hnmod` in FOLDER as a player's launcher would (the same pins, hook points and left-out mods), on the
-Nightly's source, without the player's game files. It writes the program, its `native-mods.json` and `request.txt`
-into DIR instead of installing anything. `request.txt` names the build: the target, the Nightly's commit and each
+Nightly's source, without the player's game files. It writes the program, its `native-mods.json`, the mods'
+content (`native-content/`, as an install writes it) and `request.txt` into DIR instead of installing anything. `request.txt` names the build: the target, the Nightly's commit and each
 mod's id, version and file SHA-256 (`horizon_release_sign::native_build::Request`), the text whose SHA-256 the
 launcher computes to look the build up. A set with a post-build step is never exported, because that step runs on
 the player's own game files. Downloading and checking the signed builds in the launcher comes next.

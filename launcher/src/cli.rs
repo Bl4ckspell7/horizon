@@ -811,8 +811,9 @@ enum Cmd {
         )]
         server_output: Option<PathBuf>,
         /// Prebuilt mode, for the registry's CI (#11859): build every .hnmod file in FOLDER as a
-        /// player's launcher would, and write the program, its native-mods.json and request.txt
-        /// into this new folder instead of installing it. The base needs no prepared game files
+        /// player's launcher would, and write the program, its native-mods.json, the mods' content
+        /// and request.txt into this new folder instead of installing it. The base needs no
+        /// prepared game files
         #[arg(
             long = "prebuilt-out",
             value_name = "DIR",
