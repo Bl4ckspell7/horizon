@@ -87,7 +87,10 @@ pub fn parse_rules(files: &[(&str, &str)], global: &str) -> CitRules {
         })
         .collect();
     rules.sort_by(Rule::priority);
-    cit_rules(rules, Global::parse(&Properties::parse_equals_first(global)))
+    cit_rules(
+        rules,
+        Global::parse(&Properties::parse_equals_first(global)),
+    )
 }
 
 /// A `blend=` value as the engine draws it ([`horizon_optifine::cit::parse_blend`]). For tests

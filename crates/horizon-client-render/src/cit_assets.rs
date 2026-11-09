@@ -5,8 +5,8 @@
 //! `horizon_cit:minecraft/optifine/cit/swords/flame`). A file already under `textures/` (or
 //! `models/`) keeps its vanilla id, so it is not packed twice.
 
-use horizon_assets::model::{CuboidModel, TextureSlot};
 use crate::cit::{Kind, Rule};
+use horizon_assets::model::{CuboidModel, TextureSlot};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::Path;
