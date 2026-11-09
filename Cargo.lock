@@ -1529,7 +1529,6 @@ dependencies = [
  "horizon-client-render",
  "horizon-command",
  "horizon-core",
- "horizon-friends",
  "horizon-hdr",
  "horizon-hooks",
  "horizon-items",
