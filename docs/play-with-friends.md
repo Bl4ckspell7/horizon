@@ -54,9 +54,11 @@ router that opened the port, or with a forwarded port, that's it: no server took
 reads codes and opens the tunnel, which the join (`net.rs`) then reaches on a loopback port like any server.
 horizon-friends' `game` side offers it, and the official executable (`horizon-official`) registers it;
 horizon-client's own executable has none, so there a `friend:` address is refused. Hosting needs no hook: the
-host end connects to the world's LAN port over loopback, so tunnelled guests are LAN guests. It still lives in
-horizon-client (`game/friends.rs`, `game/friends/screen.rs`, the `friends` feature, which comes with
-`horizon-extras`) until the pause menu and `horizon-ctl` offer entries to crates above the engine.
+host end connects to the world's LAN port over loopback, so tunnelled guests are LAN guests. Hosting sees the
+game only through `Hooks::share` (each client tick, with `horizon_hooks::share::ShareView`: open the world to LAN,
+its players, chat, the clipboard) and `Hooks::lan_closed`, and keeps what it shares in its own static. It still
+lives in horizon-client (`game/friends.rs`, `game/friends/screen.rs`, the `friends` feature, which comes with
+`horizon-extras`) until the pause menu and `horizon-ctl` offer entries to crates above the engine (#14167).
 
 **Codes.** Crockford base32 (`0-9 A-Z` without `I L O U`; input ignores case, spaces and dashes and reads
 `O` as `0`, `I`/`L` as `1`) in groups of five, with a 16-bit checksum so a typo is caught before
