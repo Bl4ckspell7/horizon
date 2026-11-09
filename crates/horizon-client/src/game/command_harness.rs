@@ -458,6 +458,13 @@ impl Game<'_> {
                         loop {
                             g.update_world();
                             g.spawn_loaded_entities();
+                            // A chunk whose ticket level ticks entities waits for its
+                            // 5x5 to load as well (`ChunkMap.prepareEntityTickingChunk`),
+                            // as the oracle's does (`isPositionEntityTicking`); its
+                            // ticks refresh the levels.
+                            g.update_chunk_tickets();
+                            let levels = g.tickets.levels();
+                            let ticking = g.entity_ticking_area();
                             if targets.iter().all(|&(x, z)| {
                                 g.world.chunks.contains_key(&(x, z))
                                     && g.streaming.is_lit(x, z)
@@ -466,6 +473,8 @@ impl Game<'_> {
                                         .loaded_entities
                                         .iter()
                                         .any(|(key, _)| *key == (x, z))
+                                    && (!levels.entity_ticking_at(x << 4, z << 4)
+                                        || ticking(x << 4, z << 4))
                             }) {
                                 // The oracle waits for `areEntitiesLoaded` too.
                                 g.world.entities_pending.clear();
