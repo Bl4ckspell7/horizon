@@ -7,9 +7,9 @@
 use crate::{Check, Config, Player, Strikes};
 use horizon_client_lib::collisions::SceneCollisions;
 use horizon_client_lib::lan::guest::Guest;
-use horizon_client_lib::lan::watch::Watch;
 use horizon_client_lib::lan::hub::{HostEvent, Hub, TickCtx};
 use horizon_client_lib::lan::prediction::Over;
+use horizon_client_lib::lan::watch::Watch;
 use horizon_core::geometry::{Aabb, Vec3};
 use horizon_world::nbt::{JavaString, Tag};
 use std::{io::Write, time::Instant};
