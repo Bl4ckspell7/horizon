@@ -41,13 +41,6 @@ use std::{
     },
 };
 
-/// Every block entity model, reshaped by a pack or vanilla's, and the atlas names of the
-/// pack's textures by model ([`crate::pack_hooks::PackFormats::block_entity_models`]).
-pub type Reshaped = (
-    HashMap<&'static str, ModelPart>,
-    HashMap<&'static str, String>,
-);
-
 /// One baked `ModelPart`: initial pose, textured polygons (pixel units,
 /// normalized UVs) and named children.
 #[derive(Clone, Debug, Default)]
@@ -4872,8 +4865,8 @@ mod tests {
         };
         // The chest's three faces become the bottom's, the lock's and the custom lid's six, in
         // the `.jem`'s texture. Ender and copper chests have no file of their own: vanilla's
-        // three faces in their own textures. (Trapped chests: `pack_formats::block_entity_cem`'s tests; their
-        // texture turns festive in late December.)
+        // three faces in their own textures. (Trapped chests: `block_entity_cem`'s tests in
+        // `pack_formats`; their texture turns festive in late December.)
         for (block, texture, u0, faces) in [
             ("chest", "entity/chest/normal", 0.4, 8),
             ("ender_chest", "entity/chest/ender", 0.2, 3),

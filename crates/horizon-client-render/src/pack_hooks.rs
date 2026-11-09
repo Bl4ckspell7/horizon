@@ -51,7 +51,7 @@ pub trait PackFormats: Send + Sync {
         &self,
         _root: &Path,
         _vanilla: &std::collections::HashMap<&'static str, crate::block_entity_render::ModelPart>,
-    ) -> Option<crate::block_entity_render::Reshaped> {
+    ) -> Option<Reshaped> {
         None
     }
 
@@ -111,6 +111,13 @@ pub trait PackFormats: Send + Sync {
         None
     }
 }
+
+/// Every block entity model, reshaped by a pack or vanilla's, and the atlas names of the
+/// pack's textures by model ([`PackFormats::block_entity_models`]).
+pub type Reshaped = (
+    std::collections::HashMap<&'static str, crate::block_entity_render::ModelPart>,
+    std::collections::HashMap<&'static str, String>,
+);
 
 /// No format beyond vanilla's.
 struct Vanilla;
