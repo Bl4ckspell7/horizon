@@ -796,7 +796,7 @@ impl Host for Ctx<'_> {
                 .registry
                 .configs
                 .get(id)
-                .map(horizon_polytone::pack::ConfigValue::to_value)
+                .map(horizon_polytone::pack::config_value)
                 .ok_or_else(|| format!("no config {id}")),
             _ => Err(format!("{name} is not available here")),
         }
