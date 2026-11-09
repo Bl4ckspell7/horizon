@@ -7,9 +7,8 @@
 //! reports a connection's start, join, leave and end, and shows and runs the attempt
 //! this plans. Nothing else in the engine reads it, so it leaves for a Horizon crate
 //! as a file move once its setting can leave too (docs/layers.md, plan M5).
-use horizon_hooks::{Ended, Hooks, Server};
+use horizon_hooks::{Ended, Hooks, Server, seat};
 use std::sync::Mutex;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 /// A planned attempt.
@@ -112,7 +111,7 @@ fn classified_key(key: &str) -> Option<bool> {
 }
 
 /// Attempts at one address.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Tracker {
     address: Option<String>,
     /// The player name the connection used.
@@ -122,21 +121,7 @@ pub struct Tracker {
     attempts: usize,
     joined: Option<Instant>,
 }
-impl Default for Tracker {
-    fn default() -> Self {
-        Self::new()
-    }
-}
 impl Tracker {
-    pub const fn new() -> Self {
-        Self {
-            address: None,
-            name: String::new(),
-            lan: false,
-            attempts: 0,
-            joined: None,
-        }
-    }
     /// A connection to `address` as `name` starts: a new address starts
     /// counting anew.
     pub fn connecting(&mut self, address: &str, name: &str, lan: bool) {
@@ -191,45 +176,60 @@ impl Tracker {
 }
 
 /// Auto-reconnect on the engine's connection hooks: registered at startup with the other
-/// extras (`entry.rs`); it plans nothing while its setting is off.
+/// extras (`entry.rs`); it plans nothing while its setting is off. Splitscreen players share
+/// the hooks, so each seat (`horizon_hooks::seat`) has its own tracker and setting, as each
+/// player's game had before.
 pub static HOOKS: AutoReconnect = AutoReconnect {
-    tracker: Mutex::new(Tracker::new()),
-    enabled: AtomicBool::new(false),
+    seats: Mutex::new(Vec::new()),
 };
 
 pub struct AutoReconnect {
-    tracker: Mutex<Tracker>,
-    enabled: AtomicBool,
+    seats: Mutex<Vec<Seat>>,
+}
+
+#[derive(Default)]
+struct Seat {
+    tracker: Tracker,
+    enabled: bool,
 }
 
 impl AutoReconnect {
-    /// The `autoReconnect` setting.
+    /// The `autoReconnect` setting of the player whose turn it is.
     pub fn set_enabled(&self, on: bool) {
-        self.enabled.store(on, Ordering::Relaxed);
+        self.with(|s| s.enabled = on);
     }
-    fn tracker(&self) -> std::sync::MutexGuard<'_, Tracker> {
-        self.tracker.lock().unwrap_or_else(|e| e.into_inner())
+    fn with<T>(&self, f: impl FnOnce(&mut Seat) -> T) -> T {
+        let mut seats = self.seats.lock().unwrap_or_else(|e| e.into_inner());
+        let i = seat();
+        if seats.len() <= i {
+            seats.resize_with(i + 1, Seat::default);
+        }
+        f(&mut seats[i])
     }
 }
 
 impl Hooks for AutoReconnect {
     fn connecting(&self, server: &Server<'_>) {
-        self.tracker()
-            .connecting(server.address, server.name, server.lan);
+        self.with(|s| {
+            s.tracker
+                .connecting(server.address, server.name, server.lan)
+        });
     }
     fn joined(&self) {
-        self.tracker().joined(Instant::now());
+        self.with(|s| s.tracker.joined(Instant::now()));
     }
     fn left(&self) {
-        self.tracker().reset();
+        self.with(|s| s.tracker.reset());
     }
     fn ended(&self, end: &Ended<'_>) -> Option<Retry> {
-        let mut tracker = self.tracker();
-        if !self.enabled.load(Ordering::Relaxed) {
-            tracker.reset();
-            return None;
-        }
-        tracker.ended(end.reason, end.key, end.from_server, Instant::now())
+        self.with(|s| {
+            if !s.enabled {
+                s.tracker.reset();
+                return None;
+            }
+            s.tracker
+                .ended(end.reason, end.key, end.from_server, Instant::now())
+        })
     }
 }
 
@@ -489,6 +489,33 @@ mod tests {
             None,
             "never connected"
         );
+    }
+
+    #[test]
+    fn each_splitscreen_seat_keeps_its_own_attempts_and_setting() {
+        use horizon_hooks::engine::set_seat;
+        let hooks = AutoReconnect {
+            seats: Mutex::new(Vec::new()),
+        };
+        let lost = Ended::new("Timed out", Some("disconnect.timeout"), false);
+        for (seat, on) in [(0, false), (1, true)] {
+            set_seat(seat);
+            hooks.set_enabled(on);
+            hooks.connecting(&Server::new("example.org", "Player", false));
+        }
+        // P2 has it on: an attempt in 5 s. P1 has it off: none, and P2's state stays.
+        set_seat(1);
+        assert_eq!(hooks.ended(&lost).map(|r| r.attempt), Some(1));
+        set_seat(0);
+        assert_eq!(hooks.ended(&lost), None);
+        set_seat(1);
+        hooks.connecting(&Server::new("example.org", "Player", false));
+        assert_eq!(hooks.ended(&lost).map(|r| r.attempt), Some(2));
+        // P2 leaving on purpose starts it over.
+        hooks.left();
+        hooks.connecting(&Server::new("example.org", "Player", false));
+        assert_eq!(hooks.ended(&lost).map(|r| r.attempt), Some(1));
+        set_seat(0);
     }
 
     #[test]
