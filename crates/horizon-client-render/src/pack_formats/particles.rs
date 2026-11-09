@@ -4,12 +4,12 @@
 //! custom particle is an ordinary engine particle (sprite set, interpolation, rendering, the
 //! total limit) with a controller that runs the type's ticker. [`Particles`] implements the
 //! engine's [`crate::particles::custom::CustomParticles`].
-use crate::particles::custom::{CustomParticles, GpuParticles, Made, Seed, Sound, Spawn};
 use crate::blocks::Fluid;
+use crate::environment::Frame;
+use crate::particles::custom::{CustomParticles, GpuParticles, Made, Seed, Sound, Spawn};
 use crate::particles::{
     Particle, ParticleEngine, ParticleLevel, ParticleOptions, ParticleType, ParticleUpdate,
 };
-use crate::environment::Frame;
 use horizon_core::random::{LegacyRandom, RandomSource};
 use horizon_polytone::expr::{Host, Program, Root, Value as V};
 use horizon_polytone::particles::{
@@ -1418,7 +1418,9 @@ impl CustomParticles for Particles {
         seed: i64,
     ) -> Option<Made> {
         let def = self.0.types.get(name)?;
-        let particle = make(engine, &self.0, name, def, options, position, velocity, seed)?;
+        let particle = make(
+            engine, &self.0, name, def, options, position, velocity, seed,
+        )?;
         Some(if def.gpu.is_some() {
             Made::Gpu(particle)
         } else {
@@ -1533,8 +1535,8 @@ impl CustomParticles for Particles {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::particles::Sprite;
     use crate::chunk::Chunk;
+    use crate::particles::Sprite;
     use crate::world::World;
     use glam::DVec3;
     use horizon_world::DATA_VERSION;

@@ -202,7 +202,10 @@ impl ParticleEngine {
                 .get(&super::ParticleType::from_name(vanilla)?)
                 .copied()
         })?;
-        let sprites = self.set_sprites.get(set as usize).map_or(&[][..], Vec::as_slice);
+        let sprites = self
+            .set_sprites
+            .get(set as usize)
+            .map_or(&[][..], Vec::as_slice);
         Some((set, sprites))
     }
 
@@ -213,7 +216,14 @@ impl ParticleEngine {
             return;
         };
         let mut out = Vec::new();
-        custom.entity(level, entity, position, self.camera, &mut self.random, &mut out);
+        custom.entity(
+            level,
+            entity,
+            position,
+            self.camera,
+            &mut self.random,
+            &mut out,
+        );
         for (options, position, velocity) in out {
             self.add(&options, position, velocity);
         }

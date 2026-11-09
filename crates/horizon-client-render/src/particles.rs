@@ -2222,8 +2222,8 @@ impl ParticleEngine {
             && registry.has_type(name)
         {
             let (registry, name) = (registry.clone(), name.to_owned());
-            let particle = match registry.make(self, &name, o, p, v, seed)? {
-                custom::Made::Particle(particle) => particle,
+            match registry.make(self, &name, o, p, v, seed)? {
+                custom::Made::Particle(particle) => return Some(particle),
                 custom::Made::Gpu(particle) => {
                     // A GPU particle is only a record: it never becomes an engine particle.
                     let now = self.polytone_ticks;
@@ -2237,8 +2237,7 @@ impl ParticleEngine {
                     store.spawn(&particle, now, seed as u64);
                     return None;
                 }
-            };
-            return Some(particle);
+            }
         }
         if let Some(name) = &o.mod_particle {
             let (set, behaviour) = *self.mod_sets.get(name)?;

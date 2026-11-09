@@ -5,8 +5,8 @@
 //! function runs when the frame's particle quads are built, beside the engine's own particles.
 use crate::hud::Rect;
 use crate::mesher::Vertex;
-use crate::particles::{ParticleLevel, ParticleLightCache};
 use crate::particles::custom::{GpuParticles, Orientation, orient};
+use crate::particles::{ParticleLevel, ParticleLightCache};
 use glam::{DVec3, Quat, Vec3 as FVec3};
 use horizon_polytone::particles::{CustomParticle, Gpu, RenderType};
 use std::collections::HashMap;
@@ -137,7 +137,6 @@ impl Store {
             limit: def.limit.map_or(16_384, |l| l.max(1) as usize),
         })
     }
-
 }
 
 impl GpuParticles for Store {
