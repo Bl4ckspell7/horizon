@@ -22,6 +22,7 @@
     "horizon-core": "engine",
     "horizon-items": "engine",
     "horizon-narrator": "engine",
+    "horizon-pack-options": "engine",
     "horizon-prepare": "engine",
     "horizon-protocol": "engine",
     "horizon-server-files": "engine",

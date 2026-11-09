@@ -1050,6 +1050,7 @@ mod tests {
         for (path, text) in pack {
             write(&format!("pack/{path}"), text);
         }
+        crate::pack_formats::install();
         let modifiers = PackModifiers::read(&dir.join("pack")).with_configs(
             crate::packs::polytone_configs(&crate::packs::Source::Dir(dir.join("pack"))),
         );

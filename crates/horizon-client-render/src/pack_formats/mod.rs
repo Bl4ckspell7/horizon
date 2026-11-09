@@ -12,6 +12,7 @@ mod ctm;
 mod custom_sky;
 mod entity_textures;
 mod fusion;
+mod pack_options;
 
 use std::path::Path;
 use std::sync::Arc;
@@ -60,6 +61,27 @@ impl PackFormats for Formats {
     fn custom_sky(&self, root: &Path) -> Option<Arc<dyn crate::custom_sky::SkyLayers>> {
         let sky = custom_sky::CustomSky::load(root);
         (!sky.is_empty()).then(|| Arc::new(sky) as _)
+    }
+
+    fn pack_options(&self, source: &crate::packs::Source) -> Option<horizon_pack_options::Configs> {
+        Some(pack_options::read(source))
+    }
+
+    fn overlay_active(
+        &self,
+        entry: &serde_json::Value,
+        options: &horizon_pack_options::Configs,
+        formats_apply: bool,
+    ) -> bool {
+        horizon_polytone::pack::overlay_active(entry, options, formats_apply)
+    }
+
+    fn sounds_without_unmet(
+        &self,
+        text: &[u8],
+        options: &horizon_pack_options::Configs,
+    ) -> Option<Vec<u8>> {
+        horizon_polytone::pack::sounds_without_unmet(text, options)
     }
 }
 

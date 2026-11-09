@@ -59,6 +59,35 @@ pub trait PackFormats: Send + Sync {
     fn custom_sky(&self, _root: &Path) -> Option<Arc<dyn crate::custom_sky::SkyLayers>> {
         None
     }
+
+    /// The options the pack (its base, not its overlays) declares, at their defaults.
+    fn pack_options(
+        &self,
+        _source: &crate::packs::Source,
+    ) -> Option<horizon_pack_options::Configs> {
+        None
+    }
+
+    /// Whether an `overlays.entries[]` item of `pack.mcmeta` is active, given the pack's options;
+    /// `formats_apply` is vanilla's answer from its `formats`.
+    fn overlay_active(
+        &self,
+        _entry: &serde_json::Value,
+        _options: &horizon_pack_options::Configs,
+        formats_apply: bool,
+    ) -> bool {
+        formats_apply
+    }
+
+    /// A pack's `sounds.json` without the events its options turn off; `None` when it keeps
+    /// them all.
+    fn sounds_without_unmet(
+        &self,
+        _text: &[u8],
+        _options: &horizon_pack_options::Configs,
+    ) -> Option<Vec<u8>> {
+        None
+    }
 }
 
 /// No format beyond vanilla's.

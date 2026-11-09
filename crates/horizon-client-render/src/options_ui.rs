@@ -1492,7 +1492,7 @@ pub enum Event {
     /// ones that differ from their defaults (the others went back to theirs).
     PackOptions {
         entries: Vec<String>,
-        chosen: std::collections::BTreeMap<String, horizon_polytone::pack::ConfigValue>,
+        chosen: std::collections::BTreeMap<String, horizon_pack_options::ConfigValue>,
     },
     /// An accepted button press or the release of a slider.
     ButtonClick,
@@ -1678,7 +1678,7 @@ pub struct OptionsUi {
     /// The Pack Options page, and the packs' Polytone config entries by pack id (the game
     /// fills them beside `pack_infos`).
     pub pack_options: crate::pack_options_ui::PackOptionsUi,
-    pub pack_configs: std::collections::BTreeMap<String, horizon_polytone::pack::Configs>,
+    pub pack_configs: std::collections::BTreeMap<String, horizon_pack_options::Configs>,
     pub split_profiles: crate::split_profiles::SplitProfiles,
     /// HDR calibration while its page is open.
     pub calibration: Option<crate::hdr_calibration::Calibration>,
@@ -4098,7 +4098,7 @@ impl OptionsUi {
                     events.push(Event::DownloadPack(i));
                 }
                 crate::pack_screen::Action::Options(id) => {
-                    let mut configs = horizon_polytone::pack::Configs::default();
+                    let mut configs = horizon_pack_options::Configs::default();
                     if let Some(own) = self.pack_configs.get(&id) {
                         configs.merge(own);
                     }
