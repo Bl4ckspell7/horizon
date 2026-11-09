@@ -89,9 +89,7 @@ fn from_files(
         candidates.sort_by_key(|&(depth, _)| depth);
         let found = candidates
             .iter()
-            .flat_map(move |&(_, name)| {
-                files[name].iter().map(move |path| (name, path.as_str()))
-            })
+            .flat_map(move |&(_, name)| files[name].iter().map(move |path| (name, path.as_str())))
             .find(|&(_, path)| {
                 parsed
                     .entry(path)

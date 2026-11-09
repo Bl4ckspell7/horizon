@@ -606,7 +606,9 @@ fn params(m: &Mob, s: &State, frame: &Frame, rule_index: f32, slots: &mut [f32])
             Sitting => flag(match m.species() {
                 crate::mobs::Species::Fox => crate::mobs::fox::flag(m, crate::mobs::fox::SITTING),
                 crate::mobs::Species::Panda => crate::mobs::panda::is_sitting(m),
-                crate::mobs::Species::Camel | crate::mobs::Species::CamelHusk => crate::mobs::camel::sitting(m),
+                crate::mobs::Species::Camel | crate::mobs::Species::CamelHusk => {
+                    crate::mobs::camel::sitting(m)
+                }
                 _ => m.extra.sitting,
             }),
             Tamed => flag(m.extra.tame),
