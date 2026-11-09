@@ -157,10 +157,7 @@ fn the_saved_hurt_by_mob_follows_the_live_record_only() {
     let echo = index(&mut game, ECHO);
     assert_eq!(
         fields(&mut game, echo),
-        (
-            Some(Tag::IntArray(vec![24724, 0, 0, 2])),
-            Some(Tag::Int(0))
-        ),
+        (Some(Tag::IntArray(vec![24724, 0, 0, 2])), Some(Tag::Int(0))),
         "read back from the summon"
     );
     // A live record of a resident mob: both keys, at 100 ticks still.

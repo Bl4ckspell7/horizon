@@ -10,12 +10,13 @@ use super::commands;
 mod revenge_home_tests;
 use horizon_client::{
     health::HealthEvent,
-    mobs::{Mob, Species},
+    mobs::{Mob, Species, Who},
     motion::MotionEvent,
     particles::{ParticleOptions, ParticleType},
     text::Text,
 };
 use horizon_core::random::RandomSource;
+use horizon_world::nbt::Tag;
 
 /// `EntityEvent.DROWN_PARTICLES`: broadcast with the drowning damage.
 pub(super) const DROWN_EVENT: i8 = 67;
@@ -731,6 +732,62 @@ fn damage_taken_award(amount: f32) -> Option<i32> {
     (amount < 3.402_823_5e37).then(|| horizon_core::jmath::round_f32(amount * 10.0))
 }
 
+/// A mob's last attacker in its save (`LivingEntity`'s `last_hurt_by_mob`).
+impl Game<'_> {
+    /// `LivingEntity.addAdditionalSaveData`'s `last_hurt_by_mob` and
+    /// `ticks_since_last_hurt_by_mob`, a PARTIAL projection at save time: both
+    /// from `ai.last_hurt_by` while the attacker is a living mob in the level
+    /// with a registered UUID and at most 100 ticks have passed (`baseTick`
+    /// drops the record after that, or once the attacker is dead). Otherwise
+    /// both keys go. A player attacker is not written. `load_mob` reads the
+    /// keys back into the record. This is not `baseTick`'s cleanup itself or
+    /// `#no_anger`.
+    pub(super) fn put_last_hurt_by_mob(&self, m: &Mob, tag: &mut Tag) {
+        let Tag::Compound(c) = tag else { return };
+        let since = i64::from(m.age) - i64::from(m.ai.last_hurt_by_time);
+        let reference = match m.ai.last_hurt_by {
+            Some(Who::Mob(attacker))
+                if (0..=100).contains(&since)
+                    && self.mobs.iter().any(|a| a.id == attacker && a.alive()) =>
+            {
+                self.persist.uuid_of(attacker)
+            }
+            _ => None,
+        };
+        match reference {
+            Some(uuid) => {
+                c.insert("last_hurt_by_mob".into(), Tag::IntArray(uuid.to_vec()));
+                c.insert(
+                    "ticks_since_last_hurt_by_mob".into(),
+                    Tag::Int(since as i32),
+                );
+            }
+            None => {
+                c.remove(&horizon_world::nbt::JavaString::from("last_hurt_by_mob"));
+                c.remove(&horizon_world::nbt::JavaString::from(
+                    "ticks_since_last_hurt_by_mob",
+                ));
+            }
+        }
+    }
+    /// `LivingEntity.readAdditionalSaveData`: `last_hurt_by_mob` (an
+    /// `EntityReference`) and its timestamp, `tickCount -
+    /// ticks_since_last_hurt_by_mob`. PARTIAL: only a mob already in the level
+    /// resolves; vanilla keeps an unresolved reference until it resolves.
+    /// `EntityReference.CODEC` reads the UUID as `UUIDUtil.CODEC`: four ints.
+    pub(super) fn read_last_hurt_by_mob(&self, m: &mut Mob, tag: &Tag) {
+        let hurt_by = match tag.get("last_hurt_by_mob") {
+            Some(Tag::IntArray(v)) if v.len() == 4 => Some([v[0], v[1], v[2], v[3]]),
+            _ => None,
+        };
+        if let Some(Target::Mob(attacker)) = hurt_by.and_then(|u| self.target_with_uuid(u)) {
+            let since =
+                horizon_client::save::number(tag.get("ticks_since_last_hurt_by_mob")).unwrap_or(0);
+            m.ai.last_hurt_by = Some(Who::Mob(attacker));
+            m.ai.last_hurt_by_time = (m.age as i32).wrapping_sub(since as i32);
+        }
+    }
+}
 #[cfg(test)]
 mod damage_taken_tests {
     use super::damage_taken_award;

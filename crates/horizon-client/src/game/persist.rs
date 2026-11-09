@@ -1099,23 +1099,7 @@ impl Game<'_> {
         if horizon_client::mobs::camel::is_camel(m.species()) {
             horizon_client::mobs::camel::finish_load(&mut m, self.world.game_time);
         }
-        // `LivingEntity.readAdditionalSaveData`: `last_hurt_by_mob` (an
-        // `EntityReference`) and its timestamp, `tickCount -
-        // ticks_since_last_hurt_by_mob`. PARTIAL: only a mob already in the level
-        // resolves; vanilla keeps an unresolved reference until it resolves.
-        // `EntityReference.CODEC` reads the UUID as `UUIDUtil.CODEC`: four ints.
-        let hurt_by = match tag.get("last_hurt_by_mob") {
-            Some(Tag::IntArray(v)) if v.len() == 4 => Some([v[0], v[1], v[2], v[3]]),
-            _ => None,
-        };
-        if let Some(super::commands::Target::Mob(attacker)) =
-            hurt_by.and_then(|u| self.target_with_uuid(u))
-        {
-            let since =
-                horizon_client::save::number(tag.get("ticks_since_last_hurt_by_mob")).unwrap_or(0);
-            m.ai.last_hurt_by = Some(Who::Mob(attacker));
-            m.ai.last_hurt_by_time = (m.age as i32).wrapping_sub(since as i32);
-        }
+        self.read_last_hurt_by_mob(&mut m, &tag);
         // `NeutralMob.readPersistentAngerSaveData`: the anger runs until its
         // end time, and the mob is angry at the target again, through
         // `Mob.setTarget` -> `asValidTarget`: a player the golem cannot attack
@@ -1630,42 +1614,6 @@ impl Game<'_> {
         self.write_leash(&mut tag, i);
         self.put_mob_passengers(&mut tag, id);
         tag
-    }
-    /// `LivingEntity.addAdditionalSaveData`'s `last_hurt_by_mob` and
-    /// `ticks_since_last_hurt_by_mob`, a PARTIAL projection at save time: both
-    /// from `ai.last_hurt_by` while the attacker is a living mob in the level
-    /// with a registered UUID and at most 100 ticks have passed (`baseTick`
-    /// drops the record after that, or once the attacker is dead). Otherwise
-    /// both keys go. A player attacker is not written. `load_mob` reads the
-    /// keys back into the record. This is not `baseTick`'s cleanup itself or
-    /// `#no_anger`.
-    pub(super) fn put_last_hurt_by_mob(&self, m: &horizon_client::mobs::Mob, tag: &mut Tag) {
-        let Tag::Compound(c) = tag else { return };
-        let since = i64::from(m.age) - i64::from(m.ai.last_hurt_by_time);
-        let reference = match m.ai.last_hurt_by {
-            Some(horizon_client::mobs::Who::Mob(attacker))
-                if (0..=100).contains(&since)
-                    && self.mobs.iter().any(|a| a.id == attacker && a.alive()) =>
-            {
-                self.persist.uuid_of(attacker)
-            }
-            _ => None,
-        };
-        match reference {
-            Some(uuid) => {
-                c.insert("last_hurt_by_mob".into(), Tag::IntArray(uuid.to_vec()));
-                c.insert(
-                    "ticks_since_last_hurt_by_mob".into(),
-                    Tag::Int(since as i32),
-                );
-            }
-            None => {
-                c.remove(&horizon_world::nbt::JavaString::from("last_hurt_by_mob"));
-                c.remove(&horizon_world::nbt::JavaString::from(
-                    "ticks_since_last_hurt_by_mob",
-                ));
-            }
-        }
     }
     /// Forget an entity that left the world (its UUID and loaded compound).
     pub(super) fn forget_entity(&mut self, id: u32) {
