@@ -2220,8 +2220,6 @@ struct Game<'a> {
     inv_drag: Option<(i32, Vec<usize>)>,
     /// `AbstractContainerScreen`'s quick craft and skip-release state.
     inv_clicks: horizon_client::container_screen::Clicks,
-    /// The Mouse Tweaks extra's drag and wheel (`tweaks`).
-    tweaks: extras::mouse_tweaks::Tweaks,
     /// The wheel and hovered slot of `BundleMouseActions`.
     bundle_mouse: bundles::BundleMouse,
     /// The last inventory click, for the double click that gathers a stack.
@@ -11836,7 +11834,6 @@ impl<'a> Game<'a> {
             craft_size: 2,
             craft_table: None,
             inv_drag: None,
-            tweaks: Default::default(),
             bundle_mouse: Default::default(),
             inv_clicks: Default::default(),
             last_inv_click: None,

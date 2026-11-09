@@ -1710,6 +1710,17 @@ name = "horizon-hooks"
 version = "0.1.0"
 
 [[package]]
+name = "horizon-inventory-tweaks"
+version = "0.1.0"
+dependencies = [
+ "horizon-client-lib",
+ "horizon-core",
+ "horizon-hooks",
+ "horizon-platform",
+ "horizon-world",
+]
+
+[[package]]
 name = "horizon-items"
 version = "0.1.0"
 dependencies = [
@@ -1795,6 +1806,7 @@ version = "0.1.0"
 dependencies = [
  "horizon-game",
  "horizon-heartbeat",
+ "horizon-inventory-tweaks",
  "horizon-platform",
  "horizon-reconnect",
  "log",

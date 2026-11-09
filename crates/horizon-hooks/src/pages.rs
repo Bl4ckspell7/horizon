@@ -16,8 +16,7 @@ pub enum Place {
     Pause,
     /// A section of Horizon Settings' Extras page, with no entry: its rows join the page's group
     /// its title names when the page has one (`horizon.extras.header.multiplayer`), else they
-    /// start a group of their own after the page's. A [`Row::Heading`] starts another group. A
-    /// [`Row::Key`] shows its key there, without changing it: give a page of its own to a key.
+    /// start a group of their own after the page's. A [`Row::Heading`] starts another group.
     Extras,
 }
 
@@ -39,6 +38,11 @@ pub trait Page: Sync {
     /// value. None by default.
     fn tooltip(&self, _row: usize) -> Option<Label> {
         None
+    }
+    /// Whether row `row` does anything now: a setting under a switch that is off is greyed out,
+    /// and still takes acts. True by default.
+    fn live(&self, _row: usize) -> bool {
+        true
     }
 }
 

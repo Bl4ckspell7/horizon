@@ -37,7 +37,6 @@ fn role(role: NativeSlotRole) -> Role {
         NativeSlotRole::CraftingGrid | NativeSlotRole::Input => Role::Input,
         NativeSlotRole::Result => Role::Result,
         NativeSlotRole::Equipment => Role::Equipment,
-        _ => Role::Other,
     }
 }
 
@@ -59,7 +58,7 @@ fn game_slot(slot: SlotId) -> usize {
     slot.0 as usize
 }
 
-impl Game<'_> {
+impl<'a> Game<'a> {
     /// The open menu's type: the server's, else the menu this window opened itself.
     fn container_menu(&self) -> &str {
         if let Some(menu) = self.remote_menu_type() {
@@ -118,12 +117,69 @@ impl Game<'_> {
         Some(self.inventory_origin(&HudBatch::new([r.config.width, r.config.height])))
     }
     /// The open screen for the hooks' input, None when no hook may take it.
-    fn container_open(&mut self) -> Option<Open<'_, '_>> {
+    fn container_open(&mut self) -> Option<Open<'_, 'a>> {
         if self.screen != Screen::Inventory || !engine::containers() {
             return None;
         }
         let origin = self.container_origin()?;
         Some(Open { game: self, origin })
+    }
+    /// One ordinary click on a game slot: the menu engine's, or a `ContainerClick` on a server.
+    /// False when nothing took it.
+    fn slot_click(&mut self, slot: usize, button: i32, input: Input) -> bool {
+        if self.remote.is_some() {
+            return self.remote_menu_ops(&[(Some(slot), button, input)]);
+        }
+        self.menu_click(Some(slot), button, input) && self.local_container_changed()
+    }
+    /// Puts the hand's stack (`one`: one of it) in `slot`, as a one-slot drag (`QUICK_CRAFT`) and
+    /// not a click: a server that has the hand empty (the stack it was to come from just burned as
+    /// fuel) ignores a drag, but a click would pick up what's in `slot`.
+    fn slot_put(&mut self, slot: usize, one: bool) -> bool {
+        let kind = i32::from(one) << 2;
+        self.slot_ops(&[
+            (None, kind, Input::QuickCraft),
+            (Some(slot), kind | 1, Input::QuickCraft),
+            (None, kind | 2, Input::QuickCraft),
+        ])
+    }
+    fn slot_ops(&mut self, ops: &[(Option<usize>, i32, Input)]) -> bool {
+        if self.remote.is_some() {
+            return self.remote_menu_ops(ops);
+        }
+        self.menu_ops(ops) && self.local_container_changed()
+    }
+    /// After a click on the window's own menu: the open block's container changed. True.
+    fn local_container_changed(&mut self) -> bool {
+        if let Some(key) = self.container {
+            self.container_changed(key);
+        }
+        true
+    }
+    /// `slot` takes one more of `stack`, by the open menu's rules.
+    fn container_takes_one(&mut self, slot: usize, stack: &ItemStack) -> bool {
+        let mut takes = false;
+        self.menu_session(|menu, env, to_menu| {
+            takes = to_menu(slot).is_some_and(|i| menu.takes_one(env, i, stack));
+            Some(false)
+        });
+        takes
+    }
+    /// Where vanilla's quick move would put `slot`'s items, tried on a copy of the menu that's
+    /// dropped (`Some(false)` keeps nothing).
+    fn container_landing(&mut self, slot: usize) -> Vec<usize> {
+        let slots = self.slots();
+        let mut landing = Vec::new();
+        self.menu_session(|menu, env, to_menu| {
+            let from = to_menu(slot)?;
+            landing = menu
+                .quick_move_landing(env, from)
+                .into_iter()
+                .filter_map(|i| slots.iter().copied().find(|&g| to_menu(g) == Some(i)))
+                .collect();
+            Some(false)
+        });
+        landing
     }
     fn hovered(&self) -> Option<SlotId> {
         self.inventory_target().0.map(slot_id)
@@ -157,24 +213,19 @@ impl Game<'_> {
             engine::container_release(&mut c);
         }
     }
-    /// The wheel over an inventory screen: true when the Mouse Tweaks or a hook used it.
+    /// The wheel over an inventory screen: true when a hook used it.
     pub(in crate::game) fn container_scroll(&mut self, steps: f32) -> bool {
-        let slot = self.inventory_target().0;
-        if self.tweak_scroll(steps, slot) {
-            return true;
-        }
-        let slot = slot.map(slot_id);
+        let slot = self.hovered();
         self.container_open()
             .is_some_and(|mut c| engine::container_wheel(&mut c, slot, steps))
     }
-    /// A key the screen got: sorting's key, else a hook's.
+    /// A key the screen got: true when a hook took it.
     pub(in crate::game) fn container_key_press(&mut self, key: KeyCode) -> bool {
-        self.sort_key_press(key)
-            || keybinds::key_name(key).is_some_and(|name| self.container_key(name))
+        keybinds::key_name(key).is_some_and(|name| self.container_key(name))
     }
     /// A mouse button the screen got, as a key.
     pub(in crate::game) fn container_mouse_press(&mut self, button: MouseButton) -> bool {
-        self.sort_mouse_press(button) || self.container_key(&keybinds::mouse_name(button))
+        self.container_key(&keybinds::mouse_name(button))
     }
     fn container_key(&mut self, name: &str) -> bool {
         if self.recipe_search_focused() {
@@ -184,10 +235,9 @@ impl Game<'_> {
         self.container_open()
             .is_some_and(|mut c| engine::container_key(&mut c, slot, name))
     }
-    /// Draws the sort buttons and the hooks' drawing over the panel at (`ox`, `oy`).
+    /// Draws the hooks' drawing over the panel at (`ox`, `oy`).
     pub(in crate::game) fn draw_container_extras(&self, batch: &mut HudBatch, ox: f32, oy: f32) {
-        self.draw_sort_buttons(batch, ox, oy);
-        if !engine::containers() {
+        if self.screen != Screen::Inventory || !engine::containers() {
             return;
         }
         let view = View {
@@ -235,18 +285,18 @@ impl Container for Open<'_, '_> {
     fn takes_one(&mut self, slot: SlotId, of: &Stack) -> bool {
         self.game
             .container_find(of)
-            .is_some_and(|s| self.game.tweak_takes_one(game_slot(slot), &s))
+            .is_some_and(|s| self.game.container_takes_one(game_slot(slot), &s))
     }
     fn landing(&mut self, slot: SlotId) -> Vec<SlotId> {
-        let landing = self.game.tweak_landing(game_slot(slot));
+        let landing = self.game.container_landing(game_slot(slot));
         landing.into_iter().map(slot_id).collect()
     }
     fn click(&mut self, slot: SlotId, click: Click) -> bool {
         let slot = game_slot(slot);
         match click {
-            Click::Pick { right } => self.game.tweak_click(slot, i32::from(right), Input::Pickup),
-            Click::QuickMove => self.game.tweak_click(slot, 0, Input::QuickMove),
-            Click::Put { one } => self.game.tweak_put(slot, one),
+            Click::Pick { right } => self.game.slot_click(slot, i32::from(right), Input::Pickup),
+            Click::QuickMove => self.game.slot_click(slot, 0, Input::QuickMove),
+            Click::Put { one } => self.game.slot_put(slot, one),
             _ => false,
         }
     }
