@@ -183,7 +183,7 @@ impl Game<'_> {
         let s = &self.settings;
         let home = horizon_client::logging::game_home();
         let version = horizon_client::crash::build();
-        let gpu = horizon_client::gfx::gpu();
+        let gpu = horizon_client::crash::gpu();
         self.perf.finish(&horizon_hooks::WorldLeft {
             home: &home,
             version: &version,

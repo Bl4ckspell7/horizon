@@ -204,6 +204,17 @@ impl Report {
     }
 }
 
+/// The renderer's adapter ([`crate::gfx::adapter`]), for the hooks above the engine.
+pub fn gpu() -> Option<horizon_hooks::Gpu> {
+    crate::gfx::adapter().map(|a| horizon_hooks::Gpu {
+        name: a.name,
+        vendor: a.vendor,
+        kind: a.kind,
+        driver: a.driver,
+        backend: a.backend,
+    })
+}
+
 /// The build, for what leaves the machine: the release (`v0.2.3`), or `dev <crate version>` for a
 /// build from source.
 pub fn build() -> String {
@@ -393,7 +404,7 @@ pub const SAVED_LINE: &str = "Horizon: crash report saved to ";
 /// opt-in telemetry keeps it). They run inside the crash handler: they must not panic or block.
 fn tell_hooks(home: &Path, report: &Report) {
     let version = build();
-    let gpu = crate::gfx::gpu();
+    let gpu = gpu();
     horizon_hooks::engine::crashed(&horizon_hooks::Crash {
         home,
         version: &version,
