@@ -82,6 +82,25 @@ pub trait PackFormats: Send + Sync {
         None
     }
 
+    /// The post chains of the packs merged at `root`, with the packs' option values; `None`
+    /// without any.
+    fn post_chains(
+        &self,
+        _root: &Path,
+        _options: horizon_pack_options::Configs,
+    ) -> Option<Box<dyn crate::polytone_post::PostChains>> {
+        None
+    }
+
+    /// `source` compiled as an expression over the frame (an animation `mode`); `None` when the
+    /// formats have no such expressions or it doesn't compile.
+    fn frame_expression(
+        &self,
+        _source: &str,
+    ) -> Option<Box<dyn crate::environment::FrameExpression>> {
+        None
+    }
+
     /// The options the pack (its base, not its overlays) declares, at their defaults.
     fn pack_options(
         &self,

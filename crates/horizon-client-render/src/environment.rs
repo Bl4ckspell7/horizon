@@ -127,6 +127,11 @@ pub struct DimensionMaps<'a> {
     pub post: &'a mut AttributeMap,
 }
 
+/// A pack expression over the frame (an animation `mode`): its value, `None` when it fails.
+pub trait FrameExpression: Send + Sync {
+    fn eval(&self, frame: &Frame) -> Option<f64>;
+}
+
 /// A pack's colormap over blocks (Polytone's block and fluid colormaps, wiki "Colormaps").
 pub trait BlockColormap: Send + Sync {
     /// Whether blocks take the mean of the colours around them, over the Biome Blend square.

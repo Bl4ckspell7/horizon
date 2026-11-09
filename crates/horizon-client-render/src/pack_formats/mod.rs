@@ -14,6 +14,7 @@ mod entity_textures;
 pub mod environment;
 mod fusion;
 mod pack_options;
+mod post;
 
 use std::path::Path;
 use std::sync::Arc;
@@ -81,6 +82,27 @@ impl PackFormats for Formats {
         id: &str,
     ) -> Option<Arc<dyn crate::environment::BlockColormap>> {
         Some(Arc::new(environment::Colormap::load(root, id)?))
+    }
+
+    fn post_chains(
+        &self,
+        root: &Path,
+        options: horizon_pack_options::Configs,
+    ) -> Option<Box<dyn crate::polytone_post::PostChains>> {
+        Some(Box::new(post::Post::read(root, options)?))
+    }
+
+    fn frame_expression(
+        &self,
+        source: &str,
+    ) -> Option<Box<dyn crate::environment::FrameExpression>> {
+        match horizon_polytone::expr::Program::compile(source) {
+            Ok(program) => Some(Box::new(environment::FrameProgram(program))),
+            Err(e) => {
+                log::warn!("expression {source:?}: {e}");
+                None
+            }
+        }
     }
 
     fn pack_options(&self, source: &crate::packs::Source) -> Option<horizon_pack_options::Configs> {

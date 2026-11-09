@@ -3,7 +3,7 @@
 //! engine's environment extension points ([`crate::environment::EnvironmentModifiers`],
 //! [`crate::environment::BlockColormap`]).
 use crate::environment::{
-    BlockColormap, ColormapTarget, DimensionMaps, EnvironmentModifiers, Frame,
+    BlockColormap, ColormapTarget, DimensionMaps, EnvironmentModifiers, Frame, FrameExpression,
 };
 use horizon_pack_options::Configs;
 use horizon_world::environment_attributes::{
@@ -156,6 +156,15 @@ pub fn eval_frame(
         seed: frame.game_time as u64,
     };
     program.eval(&mut host).ok()
+}
+
+/// An expression over the frame alone (an animation `mode`): no option values, `v` is 0.
+pub struct FrameProgram(pub horizon_polytone::expr::Program);
+
+impl FrameExpression for FrameProgram {
+    fn eval(&self, frame: &Frame) -> Option<f64> {
+        eval_frame(&self.0, frame, &Configs::default()).map(|v| v.num())
+    }
 }
 
 impl horizon_polytone::expr::Host for FrameHost<'_> {
