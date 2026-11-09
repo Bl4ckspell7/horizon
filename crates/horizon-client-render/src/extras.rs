@@ -738,9 +738,10 @@ impl Item {
             UiSoundReserve => return None,
             ChatIndicator => ChatAnimation,
             Pvp(o) => return o.parent().map(Pvp),
-            Fullbright | DynamicLights | OwnNameTag | HideBlockParticles | NoAi | AgentControl | ReproKeys | DiscordPresence | Splitscreen | ChatAnimation
-            | WheelCyclesSettings | MusicPage | PackBrowser | CosmeticsMine | CosmeticsOthers
-            | CosmeticsHideFx | CosmeticsSolo | HorizonMarks | HorizonMe | Pregen => {
+            Fullbright | DynamicLights | OwnNameTag | HideBlockParticles | NoAi | AgentControl
+            | ReproKeys | DiscordPresence | Splitscreen | ChatAnimation | WheelCyclesSettings
+            | MusicPage | PackBrowser | CosmeticsMine | CosmeticsOthers | CosmeticsHideFx
+            | CosmeticsSolo | HorizonMarks | HorizonMe | Pregen => {
                 return None;
             }
         })
