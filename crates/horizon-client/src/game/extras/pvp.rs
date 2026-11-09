@@ -326,8 +326,8 @@ impl Game<'_> {
             let at = [p.position.x, p.position.y, p.position.z].map(|v| v.floor() as i32);
             (at, pvp_hud::facing(self.yaw))
         });
-        // The address is copied only when it changed (`server_address` borrows the whole game).
-        let server = self.server_address().filter(|_| multiplayer);
+        // The address is copied only when it changed.
+        let server = self.last_server.address().filter(|_| multiplayer);
         let server = (hud.server && self.pvp.server.next.as_deref() != server)
             .then(|| server.map(str::to_owned));
         let now = self.started.elapsed().as_secs_f64();

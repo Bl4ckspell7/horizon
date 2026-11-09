@@ -2878,9 +2878,9 @@ struct Game<'a> {
     entity_attachments: HashMap<[i32; 4], horizon_world::attachments::Attachments>,
     /// Connected to a server: the world comes from the network (game/remote.rs).
     remote: Option<remote::Remote>,
-    /// The open connection joined from Realms: `ServerData.isRealm` for the friends
-    /// service's presence status.
-    realm_session: bool,
+    /// The multiplayer server connected to last, and whether it is a Realm; the connection's
+    /// lifecycle reaches the hooks through it (`last_server.rs`).
+    last_server: horizon_client::last_server::LastServer,
     /// Active packet replay session (game/studio.rs).
     pub(super) studio_replay: Option<horizon_client::studio::ReplayDriver>,
     pub(super) studio_freecam: horizon_client::studio::StudioFreecam,
@@ -5654,7 +5654,7 @@ impl Game<'_> {
             }
         } else if self.remote.is_some() {
             // `getCurrentServer().isRealm()`: the connection came from Realms.
-            if self.realm_session {
+            if self.last_server.realm {
                 PresenceStatus::PlayingRealms
             } else {
                 PresenceStatus::PlayingServer
@@ -11750,7 +11750,7 @@ impl Game<'_> {
                         }
                     }
                     self.extras_frame(elapsed);
-                    self.extras_retry()?;
+                    self.reconnect_when_due()?;
                     self.apply_mouse_look();
                     self.pad_look(elapsed.as_secs_f32());
                     self.advance_flight();
@@ -12462,7 +12462,7 @@ impl<'a> Game<'a> {
             persist: Default::default(),
             entity_attachments: Default::default(),
             remote: None,
-            realm_session: false,
+            last_server: Default::default(),
             studio_replay: None,
             studio_freecam: Default::default(),
             studio_timeline: Default::default(),

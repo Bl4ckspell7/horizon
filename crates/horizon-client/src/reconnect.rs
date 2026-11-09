@@ -2,7 +2,18 @@
 //! connection may be retried, and when. Only lost connections and the
 //! server's own shutdown or restart are retried, never kicks, bans or
 //! refusals; attempts back off and stop after a few.
+//!
+//! It runs on the engine's connection hooks ([`HOOKS`], `horizon_hooks`): the engine
+//! reports a connection's start, join, leave and end, and shows and runs the attempt
+//! this plans. Nothing else in the engine reads it, so it leaves for a Horizon crate
+//! as a file move once its setting can leave too (docs/layers.md, plan M5).
+use horizon_hooks::{Ended, Hooks, Server};
+use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
+
+/// A planned attempt.
+pub use horizon_hooks::Reconnect as Retry;
 
 /// Seconds before each attempt; there are no more after the last.
 pub const DELAYS: [u64; 5] = [5, 10, 20, 40, 60];
@@ -101,7 +112,7 @@ fn classified_key(key: &str) -> Option<bool> {
 }
 
 /// Attempts at one address.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Tracker {
     address: Option<String>,
     /// The player name the connection used.
@@ -111,42 +122,20 @@ pub struct Tracker {
     attempts: usize,
     joined: Option<Instant>,
 }
-/// A planned attempt.
-#[derive(Clone, Debug, PartialEq)]
-pub struct Retry {
-    pub address: String,
-    pub name: String,
-    pub lan: bool,
-    pub at: Instant,
-    /// 1-based, of `DELAYS.len()`.
-    pub attempt: usize,
-}
-impl Retry {
-    /// Whole seconds left, rounded up.
-    pub fn seconds_left(&self, now: Instant) -> u64 {
-        let left = self.at.saturating_duration_since(now);
-        left.as_secs() + u64::from(left.subsec_nanos() > 0)
-    }
-    pub fn due(&self, now: Instant) -> bool {
-        now >= self.at
-    }
-    pub fn text(&self, now: Instant) -> String {
-        format!(
-            "Reconnecting in {} s (attempt {} of {})",
-            self.seconds_left(now),
-            self.attempt,
-            DELAYS.len()
-        )
+impl Default for Tracker {
+    fn default() -> Self {
+        Self::new()
     }
 }
 impl Tracker {
-    /// The server connected to last (splitscreen players join the same one).
-    pub fn address(&self) -> Option<&str> {
-        self.address.as_deref()
-    }
-    /// That server was found on the local network.
-    pub fn lan(&self) -> bool {
-        self.lan
+    pub const fn new() -> Self {
+        Self {
+            address: None,
+            name: String::new(),
+            lan: false,
+            attempts: 0,
+            joined: None,
+        }
     }
     /// A connection to `address` as `name` starts: a new address starts
     /// counting anew.
@@ -196,7 +185,51 @@ impl Tracker {
             lan: self.lan,
             at: now + delay,
             attempt: self.attempts,
+            attempts: DELAYS.len(),
         })
+    }
+}
+
+/// Auto-reconnect on the engine's connection hooks: registered at startup with the other
+/// extras (`entry.rs`); it plans nothing while its setting is off.
+pub static HOOKS: AutoReconnect = AutoReconnect {
+    tracker: Mutex::new(Tracker::new()),
+    enabled: AtomicBool::new(false),
+};
+
+pub struct AutoReconnect {
+    tracker: Mutex<Tracker>,
+    enabled: AtomicBool,
+}
+
+impl AutoReconnect {
+    /// The `autoReconnect` setting.
+    pub fn set_enabled(&self, on: bool) {
+        self.enabled.store(on, Ordering::Relaxed);
+    }
+    fn tracker(&self) -> std::sync::MutexGuard<'_, Tracker> {
+        self.tracker.lock().unwrap_or_else(|e| e.into_inner())
+    }
+}
+
+impl Hooks for AutoReconnect {
+    fn connecting(&self, server: &Server<'_>) {
+        self.tracker()
+            .connecting(server.address, server.name, server.lan);
+    }
+    fn joined(&self) {
+        self.tracker().joined(Instant::now());
+    }
+    fn left(&self) {
+        self.tracker().reset();
+    }
+    fn ended(&self, end: &Ended<'_>) -> Option<Retry> {
+        let mut tracker = self.tracker();
+        if !self.enabled.load(Ordering::Relaxed) {
+            tracker.reset();
+            return None;
+        }
+        tracker.ended(end.reason, end.key, end.from_server, Instant::now())
     }
 }
 
@@ -467,6 +500,7 @@ mod tests {
             lan: false,
             at: now + Duration::from_millis(4200),
             attempt: 2,
+            attempts: DELAYS.len(),
         };
         assert_eq!(r.seconds_left(now), 5);
         assert_eq!(r.text(now), "Reconnecting in 5 s (attempt 2 of 5)");
