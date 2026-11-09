@@ -28,7 +28,7 @@
 //! [-w, w], and the depth buffers packs read hold GL window depth.
 
 use glam::{DMat4, DVec3, Mat4, Vec3, Vec4};
-use horizon_render_pipeline::Shadow;
+use horizon_render_pipeline::{CustomUniforms, Shadow, Val};
 
 use super::Frame;
 
@@ -1050,8 +1050,8 @@ impl FrameUniforms {
 
 impl FrameUniforms {
     /// Evaluates the pack's custom uniforms with this frame's values and puts them after
-    /// `NAMES`' values, in `custom.uniforms()` order.
-    pub fn eval_custom(&mut self, custom: &mut horizon_shaders::Custom) {
+    /// `NAMES`' values, in `custom.names()` order.
+    pub fn eval_custom(&mut self, custom: &mut dyn CustomUniforms) {
         if let Some(tick) = self.custom_restart {
             custom.restart_at(tick);
         }
@@ -1061,8 +1061,8 @@ impl FrameUniforms {
             let v = values.get(index(name)?)?;
             let n = components(name);
             Some(match *v {
-                Value::F(f) => horizon_shaders::Val::vector(&f.map(f64::from)[..n]),
-                Value::I(i) => horizon_shaders::Val::vector(&i.map(f64::from)[..n.min(3)]),
+                Value::F(f) => Val::vector(&f.map(f64::from)[..n]),
+                Value::I(i) => Val::vector(&i.map(f64::from)[..n.min(3)]),
             })
         };
         let dt = match index("frameTime").and_then(|i| values.get(i)) {
@@ -1144,9 +1144,9 @@ fn components(name: &str) -> usize {
 
 /// What `name` gives custom uniforms before the first frame: zeros, at its size, so their
 /// shapes check out as on a frame (#9086).
-pub fn zero(name: &str) -> Option<horizon_shaders::Val> {
+pub fn zero(name: &str) -> Option<Val> {
     index(name)?;
-    Some(horizon_shaders::Val::vector(&[0.0; 16][..components(name)]))
+    Some(Val::vector(&[0.0; 16][..components(name)]))
 }
 
 /// The position of `name` in [`NAMES`].

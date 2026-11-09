@@ -5,6 +5,7 @@
 //! `shaders/` packs). No wgpu and no pack file here.
 //!
 //! - [`config`]: the colortex buffers and the shadow map: formats, clearing, mipmaps, settings.
+//! - [`custom`]: the pack's custom uniforms, which the renderer evaluates each frame.
 //! - [`program`]: a translated program (naga modules and their interface) and the vertex
 //!   inputs the renderer offers it.
 //! - [`textures`]: the custom textures the programs read; [`RENDER_STAGES`]: the stages they draw in.
@@ -14,6 +15,7 @@
 
 mod api;
 pub mod config;
+pub mod custom;
 pub mod inputs;
 pub mod program;
 mod render_stage;
@@ -25,6 +27,7 @@ pub use config::{
     BUFFERS, Buffer, Config, Format, HALF_LIVES, Kind, SHADOW_COLORS, Shadow, buffer_index,
     shadow_color,
 };
+pub use custom::{CustomUniforms, Val};
 pub use inputs::Frame;
 pub use program::{
     AlphaTest, ComputeProgram, GbuffersInputs, GeometryInputs, Interface, Program, WATER_MASK,

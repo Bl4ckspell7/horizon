@@ -690,7 +690,7 @@ pub struct PackPost {
     /// `depthtex0` at the screen's centre, read back for `centerDepthSmooth`.
     center_depth: Option<super::pack_center_depth::CenterDepth>,
     /// `shaders.properties`' custom uniforms, after the frame's in `uniforms.values`.
-    custom: horizon_shaders::Custom,
+    custom: Box<dyn horizon_render_pipeline::CustomUniforms>,
     atlas: Option<wgpu::TextureView>,
     material_maps: Option<[wgpu::TextureView; 2]>,
     /// The shared atlas's normal and specular paged maps (`set_paged_maps`).
@@ -2528,17 +2528,15 @@ impl PackPost {
         }
         // shadowcolor2 to 7 only for a pack that names `HIGHER_SHADOWCOLOR`.
         let shadow_colors = (1u16 << post.shadow_colors) - 1;
-        let mut custom = post.custom;
-        let custom_names: Vec<(String, String)> = (custom.uniforms())
-            .map(|(name, ty)| (name.to_owned(), ty.to_owned()))
-            .collect();
+        let mut custom: Box<dyn horizon_render_pipeline::CustomUniforms> = Box::new(post.custom);
+        let custom_names = custom.names();
         // A first run finds the names neither the frame nor the pack defines.
         custom.eval(0.0, &pack_uniforms::zero);
         // Its zeros are no start for `smooth`: the first frame's values are, as in Iris.
         custom.restart_smoothing();
-        if !custom.notes.is_empty() {
-            notes.push(format!("custom uniforms: {}", custom.notes.join("; ")));
-            custom.notes.clear();
+        let custom_notes = custom.take_notes();
+        if !custom_notes.is_empty() {
+            notes.push(format!("custom uniforms: {}", custom_notes.join("; ")));
         }
         let mask =
             |flips: &[(u32, bool)]| flips.iter().filter(|f| f.1).fold(0u16, |m, f| m | 1 << f.0);
@@ -5394,7 +5392,7 @@ impl PackPost {
         self.uniforms.update(frame, inputs, size);
         // `smooth` starts on the first frame that knows the camera's biome.
         self.custom.world_frame(inputs.biome_known);
-        self.uniforms.eval_custom(&mut self.custom);
+        self.uniforms.eval_custom(self.custom.as_mut());
         if self.targets.is_none() {
             return;
         }

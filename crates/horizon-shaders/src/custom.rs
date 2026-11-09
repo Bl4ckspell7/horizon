@@ -24,6 +24,8 @@
 
 use std::collections::{HashMap, HashSet};
 
+use horizon_render_pipeline::custom::CustomUniforms;
+
 use crate::Properties;
 
 /// The seconds one unit of a `smooth` fade time lasts. Fitted to Iris 1.11.7 with a probe pack of
@@ -36,25 +38,17 @@ use crate::Properties;
 /// unit (`pack_uniforms.rs` `SECONDS_A_TICK`).
 const FADE_UNIT: f64 = 0.1;
 
-/// A value: up to 16 components (matrices only as names, for `m.column.row`).
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct Val {
-    pub v: [f64; 16],
-    /// Components: 1 for a scalar.
-    pub n: usize,
+pub use horizon_render_pipeline::custom::Val;
+
+/// The evaluator's arithmetic on [`Val`].
+trait ValOps {
+    fn x(&self) -> f64;
+    fn truth(&self) -> bool;
+    fn zip(self, o: Val, f: impl Fn(f64, f64) -> f64) -> Val;
+    fn map(self, f: impl Fn(f64) -> f64) -> Val;
 }
 
-impl Val {
-    pub fn scalar(x: f64) -> Self {
-        let mut v = [0.0; 16];
-        v[0] = x;
-        Self { v, n: 1 }
-    }
-    pub fn vector(c: &[f64]) -> Self {
-        let mut v = [0.0; 16];
-        v[..c.len()].copy_from_slice(c);
-        Self { v, n: c.len() }
-    }
+impl ValOps for Val {
     fn x(&self) -> f64 {
         self.v[0]
     }
@@ -585,6 +579,32 @@ impl Custom {
                 }
             }
         }
+    }
+}
+
+impl CustomUniforms for Custom {
+    fn names(&self) -> Vec<(String, String)> {
+        (self.uniforms())
+            .map(|(name, ty)| (name.to_owned(), ty.to_owned()))
+            .collect()
+    }
+    fn eval(&mut self, dt: f64, builtin: &dyn Fn(&str) -> Option<Val>) -> Vec<Val> {
+        Custom::eval(self, dt, builtin)
+    }
+    fn restart_smoothing(&mut self) {
+        Custom::restart_smoothing(self);
+    }
+    fn world_frame(&mut self, biome_known: bool) {
+        Custom::world_frame(self, biome_known);
+    }
+    fn forget_world(&mut self) {
+        Custom::forget_world(self);
+    }
+    fn restart_at(&mut self, tick: u64) {
+        Custom::restart_at(self, tick);
+    }
+    fn take_notes(&mut self) -> Vec<String> {
+        std::mem::take(&mut self.notes)
     }
 }
 
