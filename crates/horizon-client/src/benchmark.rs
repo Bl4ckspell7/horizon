@@ -475,7 +475,11 @@ fn keep_for_upload(home: &Path, report: &Report) {
     let Ok(data) = serde_json::to_value(report.for_upload()) else {
         return;
     };
-    let item = Item::new(Source::Game, crate::crash::build(), Payload::Benchmark(data));
+    let item = Item::new(
+        Source::Game,
+        crate::crash::build(),
+        Payload::Benchmark(data),
+    );
     if let Err(e) = outbox::push(home, &item) {
         log::warn!("Horizon: could not keep the benchmark report to send: {e}");
     }
