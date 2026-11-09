@@ -45,6 +45,16 @@ pub trait PackFormats: Send + Sync {
         None
     }
 
+    /// The block entity models the overlay reshapes over `vanilla`'s, with their textures;
+    /// `None` when it reshapes none.
+    fn block_entity_models(
+        &self,
+        _root: &Path,
+        _vanilla: &std::collections::HashMap<&'static str, crate::block_entity_render::ModelPart>,
+    ) -> Option<Reshaped> {
+        None
+    }
+
     /// The sky layers the overlay draws over the vanilla sky, if it has any.
     fn custom_sky(&self, _root: &Path) -> Option<Arc<dyn crate::custom_sky::SkyLayers>> {
         None
@@ -55,6 +65,13 @@ pub trait PackFormats: Send + Sync {
         None
     }
 }
+
+/// Every block entity model, reshaped by a pack or vanilla's, and the atlas names of the
+/// pack's textures by model ([`PackFormats::block_entity_models`]).
+pub type Reshaped = (
+    std::collections::HashMap<&'static str, crate::block_entity_render::ModelPart>,
+    std::collections::HashMap<&'static str, String>,
+);
 
 /// No format beyond vanilla's.
 struct Vanilla;
