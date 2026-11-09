@@ -783,10 +783,9 @@ impl Item {
             ChatIndicator => ChatAnimation,
             Pvp(o) => return o.parent().map(Pvp),
             Fullbright | DynamicLights | OwnNameTag | HideBlockParticles | MouseTweaks | Sort
-            | NoAi | AgentControl | ReproKeys | DiscordPresence | Splitscreen
-            | ChatAnimation | WheelCyclesSettings | MusicPage | PackBrowser | CosmeticsMine
-            | CosmeticsOthers | CosmeticsHideFx | CosmeticsSolo | HorizonMarks | HorizonMe
-            | Pregen => {
+            | NoAi | AgentControl | ReproKeys | DiscordPresence | Splitscreen | ChatAnimation
+            | WheelCyclesSettings | MusicPage | PackBrowser | CosmeticsMine | CosmeticsOthers
+            | CosmeticsHideFx | CosmeticsSolo | HorizonMarks | HorizonMe | Pregen => {
                 return None;
             }
         })
