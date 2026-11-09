@@ -124,7 +124,9 @@ impl super::Renderer {
         if let Some(frame) = frame {
             for (source, program) in &modes.programs {
                 let configs = Default::default();
-                if let Some(value) = crate::environment::eval_frame(program, frame, &configs) {
+                if let Some(value) =
+                    crate::pack_formats::environment::eval_frame(program, frame, &configs)
+                {
                     modes.values.insert(source.clone(), value.num());
                 }
             }

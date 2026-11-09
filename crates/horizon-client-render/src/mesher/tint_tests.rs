@@ -165,9 +165,9 @@ fn a_polytone_colormap_tints_by_biome_and_keeps_the_biome_colour_where_transpare
                 .to_vec(),
         ),
     ]);
-    let colormaps = vec![Arc::new(
-        crate::environment::Colormap::load(&root, "mypack:water").unwrap(),
-    )];
+    let colormap = crate::pack_formats::environment::Colormap::load(&root, "mypack:water");
+    let colormaps: Vec<Arc<dyn crate::environment::BlockColormap>> =
+        vec![Arc::new(colormap.unwrap())];
     for (biome, expected) in [(1, 0xFF_0000), (0, 0x3F_76E4)] {
         let chunks: Vec<Vec<Chunk>> = (0..3)
             .map(|rz| (0..3).map(|rx| filled(rx - 1, rz - 1, biome)).collect())
@@ -213,9 +213,9 @@ fn a_biome_colormap_blends_over_a_biome_edge_as_the_vanilla_water_tint_does() {
                 json.into_bytes(),
             ),
         ]);
-        let map = crate::environment::Colormap::load(&root, "mypack:water").unwrap();
+        let map = crate::pack_formats::environment::Colormap::load(&root, "mypack:water").unwrap();
         std::fs::remove_dir_all(root).unwrap();
-        vec![Arc::new(map)]
+        vec![Arc::new(map) as Arc<dyn crate::environment::BlockColormap>]
     };
     let (desert, plains) = (biomes.id("minecraft:desert"), biomes.id("minecraft:plains"));
     // The west neighbours are desert, the section and the rest plains: an edge at x = 0.

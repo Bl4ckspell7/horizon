@@ -11,6 +11,7 @@ mod connected;
 mod ctm;
 mod custom_sky;
 mod entity_textures;
+pub mod environment;
 mod fusion;
 mod pack_options;
 
@@ -61,6 +62,25 @@ impl PackFormats for Formats {
     fn custom_sky(&self, root: &Path) -> Option<Arc<dyn crate::custom_sky::SkyLayers>> {
         let sky = custom_sky::CustomSky::load(root);
         (!sky.is_empty()).then(|| Arc::new(sky) as _)
+    }
+
+    fn environment_modifiers(
+        &self,
+        root: &Path,
+    ) -> Option<Box<dyn crate::environment::EnvironmentModifiers>> {
+        Some(Box::new(environment::Modifiers::read(root)))
+    }
+
+    fn colormap_targets(&self, root: &Path) -> Vec<crate::environment::ColormapTarget> {
+        environment::colormap_targets(root)
+    }
+
+    fn block_colormap(
+        &self,
+        root: &Path,
+        id: &str,
+    ) -> Option<Arc<dyn crate::environment::BlockColormap>> {
+        Some(Arc::new(environment::Colormap::load(root, id)?))
     }
 
     fn pack_options(&self, source: &crate::packs::Source) -> Option<horizon_pack_options::Configs> {

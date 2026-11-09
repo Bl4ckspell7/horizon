@@ -757,7 +757,7 @@ pub struct MeshTables {
     lava_flow: u16,
     animated_layers: Vec<bool>,
     /// Resource packs' Polytone block and fluid colormaps (#11486), and the water's.
-    colormaps: Vec<Arc<crate::environment::Colormap>>,
+    colormaps: Vec<Arc<dyn crate::environment::BlockColormap>>,
     water_colormap: Option<u16>,
 }
 fn stem_color(age: u8) -> u32 {
@@ -951,21 +951,23 @@ impl MeshTables {
         pack_root: &std::path::Path,
         registry: &horizon_world::registry::BlockRegistry,
     ) -> Self {
-        let modifiers = crate::environment::polytone_colormap_modifiers(pack_root);
+        let formats = crate::pack_hooks::formats();
+        let modifiers = formats.colormap_targets(pack_root);
         if modifiers.is_empty() {
             return self;
         }
         let mut loaded: std::collections::HashMap<String, Option<u16>> = Default::default();
-        let mut index = |id: &str, colormaps: &mut Vec<Arc<crate::environment::Colormap>>| {
-            *loaded.entry(id.to_owned()).or_insert_with(|| {
-                let colormap = crate::environment::Colormap::load(pack_root, id)?;
-                colormaps.push(Arc::new(colormap));
-                Some((colormaps.len() - 1) as u16)
-            })
-        };
-        for (fluid, targets, id) in &modifiers {
-            if *fluid {
-                if targets.matches("minecraft:water", |_| false) {
+        let mut index =
+            |id: &str, colormaps: &mut Vec<Arc<dyn crate::environment::BlockColormap>>| {
+                *loaded.entry(id.to_owned()).or_insert_with(|| {
+                    colormaps.push(formats.block_colormap(pack_root, id)?);
+                    Some((colormaps.len() - 1) as u16)
+                })
+            };
+        for modifier in &modifiers {
+            let (targets, id) = (&modifier.targets, &modifier.colormap);
+            if modifier.fluid {
+                if targets("minecraft:water") {
                     self.water_colormap = index(id, &mut self.colormaps);
                 }
                 continue;
@@ -977,7 +979,7 @@ impl MeshTables {
                 let Some(block) = registry.state(BlockStateId(state as u32)) else {
                     continue;
                 };
-                if info.tint_count > 0 && targets.matches(&block.name, |_| false) {
+                if info.tint_count > 0 && targets(&block.name) {
                     info.colormap = Some(i);
                 }
             }
@@ -1492,7 +1494,7 @@ struct Tints<'a> {
     uniform: Option<Option<u16>>,
     /// The packs' colormaps (`MeshTables::colormaps`), the water's, and their colours so far
     /// by colormap and section-local block.
-    colormaps: &'a [Arc<crate::environment::Colormap>],
+    colormaps: &'a [Arc<dyn crate::environment::BlockColormap>],
     water_colormap: Option<u16>,
     sampled: std::collections::HashMap<(u16, [i32; 3]), Option<u32>>,
     /// Each colormap's own colour by block, before the blend averages them.
@@ -1536,7 +1538,11 @@ impl<'a> Tints<'a> {
         let colormap = self.colormaps.get(usize::from(index))?.clone();
         // ClientLevel.calculateBlockTint: the mean of the (2r+1)^2 colours around the block, each
         // channel summed and divided. A transparent pixel in the square leaves the block's own.
-        let r = if colormap.biome_blend { self.radius } else { 0 };
+        let r = if colormap.biome_blend() {
+            self.radius
+        } else {
+            0
+        };
         let mut sum = [0u32; 3];
         let mut blended = true;
         'square: for dz in -r..=r {
@@ -1565,7 +1571,7 @@ impl<'a> Tints<'a> {
     /// neighbours), before any blend.
     fn colormap_cell(
         &mut self,
-        colormap: &crate::environment::Colormap,
+        colormap: &Arc<dyn crate::environment::BlockColormap>,
         index: u16,
         at: [i32; 3],
     ) -> Option<u32> {
@@ -1575,8 +1581,9 @@ impl<'a> Tints<'a> {
         let id = Self::biome_id(&self.zoom, self.region, self.plains, self.origin, at);
         let [cx, cz, base_y] = self.origin;
         let block = [cx * 16 + at[0], base_y + at[1], cz * 16 + at[2]];
-        let mut host = crate::environment::BlockHost::new(block, self.biomes.get(id));
-        let colour = colormap.sample(&mut host).map(|c| c & 0xFF_FFFF);
+        let colour = colormap
+            .sample(block, self.biomes.get(id))
+            .map(|c| c & 0xFF_FFFF);
         self.cells.insert((index, at), colour);
         colour
     }

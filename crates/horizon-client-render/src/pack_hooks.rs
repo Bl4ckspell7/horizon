@@ -60,6 +60,28 @@ pub trait PackFormats: Send + Sync {
         None
     }
 
+    /// The overlay's changes to the dimensions' and biomes' environment attributes.
+    fn environment_modifiers(
+        &self,
+        _root: &Path,
+    ) -> Option<Box<dyn crate::environment::EnvironmentModifiers>> {
+        None
+    }
+
+    /// The overlay's block and fluid modifiers that tint with a colormap.
+    fn colormap_targets(&self, _root: &Path) -> Vec<crate::environment::ColormapTarget> {
+        Vec::new()
+    }
+
+    /// The overlay's colormap `id` (`namespace:path`), as blocks sample it.
+    fn block_colormap(
+        &self,
+        _root: &Path,
+        _id: &str,
+    ) -> Option<Arc<dyn crate::environment::BlockColormap>> {
+        None
+    }
+
     /// The options the pack (its base, not its overlays) declares, at their defaults.
     fn pack_options(
         &self,

@@ -59,7 +59,7 @@ enum TintSource {
     /// `water_color`): the biome's own, as blocks get it.
     Biome(fn(&crate::biome::BiomeInfo) -> u32),
     /// A pack's colormap (`polytone/colormaps`), its axes run against the particle.
-    Pack(crate::environment::Colormap),
+    Pack(crate::pack_formats::environment::Colormap),
 }
 
 /// When a particle's colormap is sampled again (`cache`).
@@ -101,7 +101,9 @@ impl Tint {
             "minecraft:foliage_color" => TintSource::Biome(|b| b.foliage),
             "minecraft:dry_foliage_color" => TintSource::Biome(|b| b.dry_foliage),
             "minecraft:water_color" => TintSource::Biome(|b| b.water),
-            _ => TintSource::Pack(crate::environment::Colormap::load(pack_root, &id)?),
+            _ => TintSource::Pack(crate::pack_formats::environment::Colormap::load(
+                pack_root, &id,
+            )?),
         };
         Some(Self { source, cache })
     }
@@ -774,7 +776,9 @@ impl Host for Ctx<'_> {
                 // `r.noise(x, y)`: one simplex noise (named noises aren't read yet).
                 let mut coords = args.iter().filter(|v| !matches!(v, V::Str(_))).map(V::num);
                 let (x, y) = (coords.next().unwrap_or(0.0), coords.next().unwrap_or(0.0));
-                num(f64::from(crate::environment::polytone_noise().get2(x, y)))
+                num(f64::from(
+                    crate::pack_formats::environment::polytone_noise().get2(x, y),
+                ))
             }
             (id, _) if id >= BLOCKS => {
                 let at = *self
