@@ -34,6 +34,59 @@ impl Game<'_> {
             _ => {}
         }
     }
+    /// What `screen` draws of its own, once a frame (the match `hud_layers`
+    /// runs after the HUD): `Screen::Mod` draws only the screen it replaced,
+    /// when `native_mod_screen_open_over` asked for it.
+    pub(super) fn draw_screen(&mut self, batch: &mut HudBatch, screen: Screen) {
+        match screen {
+            Screen::Paused if self.pause_menu => self.draw_pause_menu(batch),
+            // PauseScreen(false): only its title, at the top.
+            Screen::Paused => {
+                let title = self.translate("menu.paused", "Game Paused");
+                widgets::begin_screen(|| ScreenInfo::new("paused", title.clone()));
+                let tw = HudBatch::text_width(&self.gui.atlas, &title);
+                batch.text(
+                    &self.gui.atlas,
+                    &title,
+                    ((batch.width / 2.0).floor() - (tw / 2.0).floor()).floor(),
+                    10.0,
+                    u32::MAX,
+                    true,
+                );
+            }
+            Screen::GameModeSwitcher => self.draw_gamemode_switcher(batch),
+            Screen::EmoteWheel => self.draw_emote_wheel(batch),
+            Screen::Dead => self.draw_death_screen(batch),
+            Screen::Stats => self.draw_stats(batch),
+            Screen::Advancements => self.draw_advancements(batch),
+            Screen::Mod => self.draw_mod_screen_under(batch),
+            Screen::WorldOptions => self.draw_world_options(batch),
+            Screen::Friends => self.draw_friends_screen(batch),
+            Screen::Social => self.draw_social_screen(batch),
+            Screen::ServerLinks => self.draw_server_links(batch),
+            Screen::ConfirmLink => self.draw_confirm_link(batch),
+            Screen::DialogWarning => self.draw_dialog_warning(batch),
+            Screen::CommandBlock => self.draw_command_block(batch),
+            Screen::BlockEditor => self.draw_block_editor(batch),
+            Screen::DebugOptions => self.draw_debug_options(batch),
+            Screen::HudEditor => self.draw_hud_editor(batch),
+            Screen::Studio => {}
+            Screen::Inventory => {
+                let from = batch.vertices.len();
+                self.draw_inventory(batch);
+                self.draw_mod_browser(batch);
+                self.draw_pad_menu_guide(batch, from);
+            }
+            Screen::Creative => {
+                let from = batch.vertices.len();
+                self.draw_creative(batch);
+                self.draw_mod_browser(batch);
+                self.draw_pad_menu_guide(batch, from);
+            }
+            Screen::Chat => self.draw_chat_screen(batch),
+            Screen::Playing | Screen::Options | Screen::Win => {}
+        }
+    }
 }
 
 impl Screen {

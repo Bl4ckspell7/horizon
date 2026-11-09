@@ -3,13 +3,14 @@
   "helpers": [
     {
       "name": "mod_screen_open_over",
-      "target": "horizon_client::game::native_hooks::Game<'_>::native_mod_screen_open_over"
+      "target": "horizon_client::game::native_mod_screen::Game<'_>::native_mod_screen_open_over"
     },
     {
       "name": "mod_screen_under_rect",
-      "target": "horizon_client::game::native_hooks::Game<'_>::native_mod_screen_under_rect"
+      "target": "horizon_client::game::native_mod_screen::Game<'_>::native_mod_screen_under_rect"
     }
   ],
   "rust_summary": "a mod's own screen over the options page, the pause menu or an open container (`native_mod_screen_open_over`, `native_mod_screen_under_rect`).",
-  "doc_summary": "`native_mod_screen_open_over(mod_id, keep_drawing_previous)` opens a mod's own screen over the options page (Options > Mods), the pause menu or the inventory or a container, not only over the world: Escape or `native_mod_screen_close` gives the replaced screen back, a server closing the container closes it for good, and a single-player game stays paused under a pausing screen. With `keep_drawing_previous` the pause menu's title or the container's panel is still drawn under the mod screen with no pointer over it, and `native_mod_screen_under_rect()` gives its panel (`[left, top, width, height]` in GUI pixels) for the mod to place its overlays by. It takes no clicks or keys while the mod screen is up. Bundles need \"hooks\": @API:mod_screen_over@."
+  "doc_summary": "`native_mod_screen_open_over(mod_id, keep_drawing_previous)` opens a mod's own screen over the options page (Options > Mods), the pause menu or the inventory or a container, not only over the world: Escape or `native_mod_screen_close` gives the replaced screen back, a server closing the container closes it for good, and a single-player game stays paused under a pausing screen. With `keep_drawing_previous` the pause menu's title or the container's panel is still drawn under the mod screen with no pointer over it, and `native_mod_screen_under_rect()` gives its panel (`[left, top, width, height]` in GUI pixels) for the mod to place its overlays by. It takes no clicks or keys while the mod screen is up. Bundles need \"hooks\": @API:mod_screen_over@.",
+  "comments": ["crates/horizon-client/src/game/native_mod_screen.rs"]
 }
