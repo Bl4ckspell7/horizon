@@ -16,7 +16,7 @@
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 use std::sync::{Mutex, OnceLock};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 /// What a crate above the engine hears from the game. Every method has an empty default:
 /// implement only those you need. Hooks run on the game's thread (the render thread) unless a
@@ -62,6 +62,40 @@ pub trait Hooks: Sync {
     /// The game crashed, once, before its report is saved in `crash-reports/`. Called on the
     /// thread that crashed, whatever the mode (a dedicated server too).
     fn crashed(&self, _crash: &Crash<'_>) {}
+
+    /// Whether this crate runs the benchmark `--benchmark SCENARIO` names. Asked while the command
+    /// line is read; a scenario no hook knows is refused there.
+    fn knows_benchmark(&self, _scenario: &str) -> bool {
+        false
+    }
+
+    /// Starts the benchmark [`Hooks::knows_benchmark`] accepted, once the title screen loads: it
+    /// drives the game through `control` on a thread of its own and quits the game when done.
+    /// Only the first hook that knows the scenario is called.
+    fn benchmark(&self, _run: &Benchmark<'_>, _control: Control) {}
+}
+
+/// One command line into the game's agent control (docs/agent-control.md), answered with its
+/// JSON reply, as `horizon-ctl` would send it. `None`: the game has exited, or gave no reply
+/// within the time given.
+pub type Control = Box<dyn Fn(&str, Duration) -> Option<String> + Send>;
+
+/// What [`Hooks::benchmark`] gets.
+pub struct Benchmark<'a> {
+    pub scenario: &'a str,
+    /// When the process started.
+    pub started: Instant,
+    /// The game's home folder (logs, crash reports, telemetry).
+    pub home: &'a Path,
+    /// The game folder (saves, options).
+    pub game_dir: &'a Path,
+    /// The release, as the game's log names it: a nightly's label, the tag, or the crate version
+    /// for a build from source.
+    pub version: &'a str,
+    /// As [`Crash::version`].
+    pub build: &'a str,
+    pub simulation_distance: u32,
+    pub offscreen: bool,
 }
 
 /// The graphics adapter the renderer runs on.
@@ -302,6 +336,21 @@ pub mod engine {
             hooks.crashed(crash);
         }
     }
+
+    /// [`Hooks::knows_benchmark`]: whether any hook does.
+    pub fn knows_benchmark(scenario: &str) -> bool {
+        all().iter().any(|h| h.knows_benchmark(scenario))
+    }
+
+    /// [`Hooks::benchmark`]: starts the run on the first hook that knows the scenario. False when
+    /// none does.
+    pub fn benchmark(run: &Benchmark<'_>, control: Control) -> bool {
+        let Some(hooks) = all().iter().find(|h| h.knows_benchmark(run.scenario)) else {
+            return false;
+        };
+        hooks.benchmark(run, control);
+        true
+    }
 }
 
 #[cfg(test)]
@@ -331,6 +380,16 @@ mod tests {
         }
         fn wants_frame_steps(&self, _home: &Path) -> bool {
             true
+        }
+        fn knows_benchmark(&self, scenario: &str) -> bool {
+            scenario == "ocean"
+        }
+        fn benchmark(&self, run: &Benchmark<'_>, control: Control) {
+            let reply = control("status", Duration::from_secs(1)).unwrap_or_default();
+            self.0
+                .lock()
+                .unwrap()
+                .push(format!("benchmark {} {reply}", run.scenario));
         }
         fn frame(&self, frame: &Frame<'_>) {
             let step = frame
@@ -365,6 +424,21 @@ mod tests {
         // Any hook that wants the steps timed has them.
         assert!(engine::wants_frame_steps(Path::new("home")));
         engine::frame(&Frame::new(70.0, &|| Some(("render/terrain".into(), 50.0))));
+        // A benchmark runs on the hook that knows it, and on none when nobody does.
+        let run = |scenario| Benchmark {
+            scenario,
+            started: Instant::now(),
+            home: Path::new("home"),
+            game_dir: Path::new("game"),
+            version: "v0.2.31",
+            build: "v0.2.31",
+            simulation_distance: 12,
+            offscreen: true,
+        };
+        let control = || -> Control { Box::new(|line, _| Some(format!("{{{line}}}"))) };
+        assert!(engine::knows_benchmark("ocean") && !engine::knows_benchmark("nether"));
+        assert!(engine::benchmark(&run("ocean"), control()));
+        assert!(!engine::benchmark(&run("nether"), control()));
         engine::shutdown();
         assert_eq!(
             *RECORDER.0.lock().unwrap(),
@@ -375,6 +449,7 @@ mod tests {
                 "CoreReady 900",
                 "TitleShown 1500",
                 "frame 70 render/terrain 50",
+                "benchmark ocean {status}",
             ]
         );
         assert_eq!(register(&Silent), Err(TooLate));

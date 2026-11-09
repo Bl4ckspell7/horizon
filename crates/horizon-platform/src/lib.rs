@@ -47,6 +47,7 @@ pub use horizon_server_files as server_files;
 /// in"). The engine's dispatch side is not part of the API.
 pub mod hooks {
     pub use horizon_hooks::{
-        Crash, Display, Frame, Gpu, Hooks, Milestone, Started, TooLate, WorldLeft, register,
+        Benchmark, Control, Crash, Display, Frame, Gpu, Hooks, Milestone, Started, TooLate,
+        WorldLeft, register,
     };
 }
