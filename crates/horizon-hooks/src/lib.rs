@@ -13,13 +13,17 @@
 //! does the matching thing.
 //!
 //! The platform registries (docs/layers.md, "Platform registries") have the same shape:
-//! [`settings`] for the settings each crate keeps in its own lines.
+//! [`settings`] for the settings each crate keeps in its own lines, [`pages`] for its settings
+//! pages, [`hud`] for what it draws on the HUD.
 #![forbid(unsafe_code)]
 
+pub mod hud;
+pub mod pages;
 mod registry;
 pub mod settings;
 
 use registry::Registry;
+use std::cell::Cell;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;
 
@@ -167,15 +171,34 @@ fn all() -> &'static [&'static dyn Hooks] {
     HOOKS.all()
 }
 
+thread_local! {
+    static SEAT: Cell<usize> = const { Cell::new(0) };
+}
+
+/// The splitscreen player whose turn it is: 0 for P1 (and without splitscreen), 1 for P2...
+/// Splitscreen players are one process, each `Game` in turn on the game's thread, so a crate's
+/// statics are shared by them: a crate that keeps per-player state (settings, pages, HUD) indexes
+/// it by this. A player keeps its seat while it plays. Other threads always see 0.
+pub fn seat() -> usize {
+    SEAT.get()
+}
+
 /// The engine's side: where it calls the hooks. Only the engine calls these.
 pub mod engine {
     use super::*;
+
+    /// The player whose turn starts on this thread ([`seat`]).
+    pub fn set_seat(seat: usize) {
+        SEAT.set(seat);
+    }
 
     /// Seals every list (hooks and the registries); their first use does it anyway. Call where
     /// registration ends.
     pub fn seal() {
         all();
         crate::settings::all();
+        crate::pages::engine::all();
+        crate::hud::engine::all();
     }
 
     /// [`Hooks::started`].
