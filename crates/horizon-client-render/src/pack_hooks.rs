@@ -116,6 +116,16 @@ pub trait PackFormats: Send + Sync {
         Vec::new()
     }
 
+    /// The custom particle types and emitters of the packs merged at `root`, with the block
+    /// states their block emitters aim at; `None` when no pack has any.
+    fn custom_particles(
+        &self,
+        _root: &Path,
+        _blocks: &'static horizon_world::registry::BlockRegistry,
+    ) -> Option<Arc<dyn crate::particles::custom::CustomParticles>> {
+        None
+    }
+
     /// The options the pack (its base, not its overlays) declares, at their defaults.
     fn pack_options(
         &self,
