@@ -304,7 +304,7 @@ impl ApplicationHandler for Game<'_> {
         };
         horizon_client::window::settle_created_fullscreen(&window, fullscreen);
         drop(window_step);
-        horizon_client::telemetry::note_display(&window);
+        horizon_client::play_session::note_display(&window);
         match self.new_renderer(window.clone()) {
             Ok(r) => {
                 self.renderer = Some(r);

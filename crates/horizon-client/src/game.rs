@@ -12726,7 +12726,7 @@ pub fn run_with() -> Result<()> {
     // for a server, a benchmark, a run that quits by itself, a harness's fixture or a run that
     // horizon-ctl drives: those start in a source checkout and wrote the list there.
     if !options.offscreen && !synchronous_startup(&options) {
-        let version = horizon_client::telemetry::version();
+        let version = horizon_client::crash::build();
         horizon_hooks::engine::started(&horizon_hooks::Started::new(&version));
         let player_dir = horizon_client::logging::player_dir();
         // horizon-extras: the official server is Horizon's (docs/forking.md).

@@ -178,12 +178,16 @@ impl Game<'_> {
         }
         // Again now: on Wayland the window is on a screen only once it has been shown.
         if let Some(window) = &self.window {
-            horizon_client::telemetry::note_display(window);
+            horizon_client::play_session::note_display(window);
         }
         let s = &self.settings;
         let home = horizon_client::logging::game_home();
+        let version = horizon_client::crash::build();
+        let gpu = horizon_client::gfx::gpu();
         self.perf.finish(&horizon_hooks::WorldLeft {
             home: &home,
+            version: &version,
+            gpu: gpu.as_ref(),
             render_distance: s.render_distance,
             simulation_distance: s.simulation_distance,
             // 260 is the slider's "unlimited".

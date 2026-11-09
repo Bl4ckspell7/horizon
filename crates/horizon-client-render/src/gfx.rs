@@ -2159,6 +2159,17 @@ pub fn adapter() -> Option<Adapter> {
     ADAPTER.lock().unwrap_or_else(|e| e.into_inner()).clone()
 }
 
+/// [`adapter`], for the hooks above the engine.
+pub fn gpu() -> Option<horizon_hooks::Gpu> {
+    adapter().map(|a| horizon_hooks::Gpu {
+        name: a.name,
+        vendor: a.vendor,
+        kind: a.kind,
+        driver: a.driver,
+        backend: a.backend,
+    })
+}
+
 /// wgpu's device type in the words reports use.
 pub fn gpu_kind(device_type: &str) -> &'static str {
     match device_type {

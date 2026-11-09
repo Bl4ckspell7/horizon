@@ -19,6 +19,8 @@ horizon-hdr = { path = "../horizon-hdr" }
 horizon-items = { path = "../horizon-items" }
 # The narrator option's status and whether the narrator is there (Options.narrator).
 horizon-narrator = { path = "../horizon-narrator" }
+# The hooks above the engine hear each crash (`crash.rs`, docs/layers.md).
+horizon-hooks = { path = "../horizon-hooks" }
 # OptiFine-format pack files: random entity textures (hud.rs), connected textures
 # (connected.rs) and custom item texture rules (cit.rs).
 horizon-optifine = { path = "../horizon-optifine" }

@@ -54,6 +54,54 @@ pub trait Hooks: Sync {
     /// The player left a world (to the title screen, or by quitting): the end of a play
     /// session, with the settings it was played with.
     fn world_left(&self, _left: &WorldLeft<'_>) {}
+
+    /// The screen the window is on: when the window opens, and again as a session ends (on
+    /// Wayland a window is on a screen only once it has been shown).
+    fn display(&self, _display: &Display) {}
+
+    /// The game crashed, once, before its report is saved in `crash-reports/`. Called on the
+    /// thread that crashed, whatever the mode (a dedicated server too).
+    fn crashed(&self, _crash: &Crash<'_>) {}
+}
+
+/// The graphics adapter the renderer runs on.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Gpu {
+    pub name: String,
+    pub vendor: String,
+    /// `integrated`, `discrete`, `virtual`, `cpu` or `other`.
+    pub kind: String,
+    pub driver: String,
+    /// `metal`, `vulkan`, `dx12` or `gl`.
+    pub backend: String,
+}
+
+/// The screen a window is on ([`Hooks::display`]).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Display {
+    /// Physical pixels.
+    pub width: u32,
+    pub height: u32,
+    /// `None` where the OS doesn't say.
+    pub refresh_hz: Option<u32>,
+    pub scale: f64,
+}
+
+/// What [`Hooks::crashed`] gets: the crash report's parts.
+pub struct Crash<'a> {
+    /// The game's home folder.
+    pub home: &'a Path,
+    /// The build: the release (`v0.2.3`), or `dev <crate version>` for a build from source.
+    pub version: &'a str,
+    /// The error's message.
+    pub error: &'a str,
+    /// Where it happened and how it got there: one frame a line.
+    pub stack: &'a str,
+    pub thread: &'a str,
+    /// The report's details (`Horizon Version`, `World`, `Server`...), as written in it.
+    pub details: &'a [(String, String)],
+    /// The renderer's adapter, once it has one.
+    pub gpu: Option<&'a Gpu>,
 }
 
 /// A moment of the game's start ([`Hooks::startup`]).
@@ -98,9 +146,14 @@ impl<'a> Frame<'a> {
     }
 }
 
-/// What [`Hooks::world_left`] gets: the game's home folder and the settings played with.
+/// What [`Hooks::world_left`] gets: the game's home folder, the build, the adapter and the
+/// settings played with.
 pub struct WorldLeft<'a> {
     pub home: &'a Path,
+    /// As [`Crash::version`].
+    pub version: &'a str,
+    /// The renderer's adapter.
+    pub gpu: Option<&'a Gpu>,
     pub render_distance: i32,
     pub simulation_distance: i32,
     /// `None`: unlimited.
@@ -233,6 +286,20 @@ pub mod engine {
     pub fn world_left(left: &WorldLeft<'_>) {
         for hooks in all() {
             hooks.world_left(left);
+        }
+    }
+
+    /// [`Hooks::display`].
+    pub fn display(display: &Display) {
+        for hooks in all() {
+            hooks.display(display);
+        }
+    }
+
+    /// [`Hooks::crashed`].
+    pub fn crashed(crash: &Crash<'_>) {
+        for hooks in all() {
+            hooks.crashed(crash);
         }
     }
 }
