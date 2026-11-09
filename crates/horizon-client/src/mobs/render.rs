@@ -2351,7 +2351,7 @@ pub fn part_matrix(
         .find_map(|c| part_matrix(c, m, poses, name, x_offset))
 }
 /// The first part named `name`, depth first.
-pub(super) fn find_part<'a>(part: &'a Part, name: &str) -> Option<&'a Part> {
+pub fn find_part<'a>(part: &'a Part, name: &str) -> Option<&'a Part> {
     if part.name == name {
         return Some(part);
     }
