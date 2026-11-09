@@ -1856,6 +1856,9 @@ dependencies = [
 [[package]]
 name = "horizon-render-pipeline"
 version = "0.1.0"
+dependencies = [
+ "bytemuck",
+]
 
 [[package]]
 name = "horizon-server"
@@ -1905,7 +1908,7 @@ dependencies = [
 name = "horizon-shader-api"
 version = "0.1.0"
 dependencies = [
- "bytemuck",
+ "horizon-render-pipeline",
  "naga",
  "png",
  "serde",
