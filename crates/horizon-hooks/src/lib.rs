@@ -13,11 +13,15 @@
 //! does the matching thing.
 //!
 //! The platform registries (docs/layers.md, "Platform registries") have the same shape:
-//! [`settings`] for the settings each crate keeps in its own lines.
+//! [`settings`] for the settings each crate keeps in its own lines, [`pages`] for its settings
+//! pages, [`hud`] for what it draws on the HUD.
 #![forbid(unsafe_code)]
 
+pub mod hud;
+pub mod pages;
 mod registry;
 pub mod settings;
+pub mod tunnel;
 
 use registry::Registry;
 use std::path::Path;
@@ -79,6 +83,12 @@ pub trait Hooks: Sync {
     /// drives the game through `control` on a thread of its own and quits the game when done.
     /// Only the first hook that knows the scenario is called.
     fn benchmark(&self, _run: &Benchmark<'_>, _control: Control) {}
+    /// The resolver of `friend:` addresses this crate offers ([`tunnel`]); the first hook that
+    /// offers one is used. Asked on the network thread when joining and on the game thread when
+    /// an address is shown, never per frame.
+    fn tunnel(&self) -> Option<&dyn tunnel::Resolver> {
+        None
+    }
 }
 
 /// One command line into the game's agent control (docs/agent-control.md), answered with its
@@ -252,6 +262,8 @@ pub mod engine {
     pub fn seal() {
         all();
         crate::settings::all();
+        crate::pages::engine::all();
+        crate::hud::engine::all();
     }
 
     /// [`Hooks::started`].
@@ -347,6 +359,10 @@ pub mod engine {
         };
         hooks.benchmark(run, control);
         true
+    }
+    /// [`Hooks::tunnel`]: the first registered hook's resolver.
+    pub fn tunnel() -> Option<&'static dyn tunnel::Resolver> {
+        all().iter().find_map(|hooks| hooks.tunnel())
     }
 }
 
