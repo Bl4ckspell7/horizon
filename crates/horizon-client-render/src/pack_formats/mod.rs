@@ -4,7 +4,10 @@
 //! moves to a platform crate unchanged, and nothing else in the crate names it.
 
 mod colors;
+mod connected;
+mod ctm;
 mod custom_sky;
+mod fusion;
 
 use std::path::Path;
 use std::sync::Arc;
@@ -17,6 +20,17 @@ pub struct Formats;
 impl PackFormats for Formats {
     fn colors(&self, root: &Path) -> Option<crate::pack_palette::PackColors> {
         Some(colors::read(root))
+    }
+
+    fn connected_textures(
+        &self,
+        root: &Path,
+        registry: &horizon_world::registry::BlockRegistry,
+        sprites: &mut crate::sprites::Sprites,
+        models: &mut crate::models::StateModels,
+        native_mods: &mut dyn FnMut(&mut crate::sprites::Sprites),
+    ) -> Option<crate::connected::Connected> {
+        connected::load(root, registry, sprites, models, native_mods)
     }
 
     fn emissive_suffix(&self, root: &Path) -> Option<String> {

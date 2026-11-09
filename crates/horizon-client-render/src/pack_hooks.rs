@@ -21,6 +21,20 @@ pub trait PackFormats: Send + Sync {
         None
     }
 
+    /// The overlay's connected textures: their tiles go into `sprites` (before it finishes), and
+    /// baked faces they draw on may get a rule (`crate::models::BakedFace::fusion`).
+    /// `native_mods` loads native mods' own sprites: call it after the tiles that go before them.
+    fn connected_textures(
+        &self,
+        _root: &Path,
+        _registry: &horizon_world::registry::BlockRegistry,
+        _sprites: &mut crate::sprites::Sprites,
+        _models: &mut crate::models::StateModels,
+        _native_mods: &mut dyn FnMut(&mut crate::sprites::Sprites),
+    ) -> Option<crate::connected::Connected> {
+        None
+    }
+
     /// The sky layers the overlay draws over the vanilla sky, if it has any.
     fn custom_sky(&self, _root: &Path) -> Option<Arc<dyn crate::custom_sky::SkyLayers>> {
         None
