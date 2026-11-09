@@ -265,7 +265,7 @@ impl horizon_polytone::expr::Host for FrameHost<'_> {
             ("config", [horizon_polytone::expr::Value::Str(id)]) => self
                 .configs
                 .get(id)
-                .map(horizon_polytone::pack::ConfigValue::to_value)
+                .map(horizon_polytone::pack::config_value)
                 .ok_or_else(|| format!("no config {id}")),
             _ => Err(format!(
                 "{name} is not available in an attribute expression"
@@ -1084,6 +1084,7 @@ mod tests {
         for (path, text) in pack {
             write(&format!("pack/{path}"), text);
         }
+        crate::pack_formats::install();
         let modifiers = PackModifiers::read(&dir.join("pack")).with_configs(
             crate::packs::polytone_configs(&crate::packs::Source::Dir(dir.join("pack"))),
         );

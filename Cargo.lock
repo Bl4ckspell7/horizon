@@ -1590,6 +1590,7 @@ dependencies = [
  "horizon-items",
  "horizon-narrator",
  "horizon-optifine",
+ "horizon-pack-options",
  "horizon-polytone",
  "horizon-protocol",
  "horizon-render-pipeline",
@@ -1811,6 +1812,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "horizon-pack-options"
+version = "0.1.0"
+
+[[package]]
 name = "horizon-platform"
 version = "0.1.0"
 dependencies = [
@@ -1827,6 +1832,7 @@ dependencies = [
 name = "horizon-polytone"
 version = "0.1.0"
 dependencies = [
+ "horizon-pack-options",
  "log",
  "regex",
  "serde_json",

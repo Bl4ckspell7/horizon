@@ -46,6 +46,7 @@ members = [
     "crates/horizon-render-pipeline",
     "crates/horizon-optifine",
     "crates/horizon-polytone",
+    "crates/horizon-pack-options",
     "crates/horizon-shader-api",
     "crates/horizon-release-sign",
     "crates/horizon-mod-deps",
