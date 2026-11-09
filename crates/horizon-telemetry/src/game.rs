@@ -1,21 +1,21 @@
-//! The game's part in opt-in data collection (`horizon_telemetry`, docs/telemetry.md). When the
-//! player allows it, the game keeps a scrubbed crash report, or a play session's performance
+//! The game's part in opt-in data collection (docs/telemetry.md), behind the `game` feature. When
+//! the player allows it, the game keeps a scrubbed crash report, or a play session's performance
 //! summary, in the outbox. It never sends those itself: the launcher does, at its next start (the
-//! game's only sending is the anonymous "I'm playing" ping, `heartbeat.rs`).
-//! Without the player's yes for that kind nothing is kept, and crash-reports/ stays local.
+//! game's only sending is the anonymous "I'm playing" ping, `horizon-heartbeat`). Without the
+//! player's yes for that kind nothing is kept, and crash-reports/ stays local.
 //!
-//! It hears the game only through its hooks ([`HOOKS`], `horizon_hooks`), as a Horizon crate does:
-//! it leaves the engine for the Horizon layer next (layer plan M5, docs/layers.md).
+//! It hears the game only through the platform's hooks ([`HOOKS`], `horizon_platform::hooks`);
+//! the official executable registers it (`horizon_official::PARTS`).
 use std::path::Path;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{LazyLock, Mutex};
 use std::time::Duration;
 
-use horizon_hooks::{self as hooks, Frame, Hooks, Milestone, WorldLeft};
+use horizon_platform::hooks::{self, Frame, Hooks, Milestone, WorldLeft};
 
-use horizon_telemetry::payload::{Crash, Display, Perf, Settings, System, Timings};
-use horizon_telemetry::scrub::Scrubber;
-use horizon_telemetry::{Item, Payload, Source, outbox};
+use crate::payload::{Crash, Display, Perf, Settings, System, Timings};
+use crate::scrub::Scrubber;
+use crate::{Item, Payload, Source, outbox};
 
 /// A session shorter than this says too little to keep.
 const MIN_SECONDS: f32 = 60.0;
@@ -29,7 +29,7 @@ static REST_READY_MS: AtomicU32 = AtomicU32::new(u32::MAX);
 /// The screen the window opened on.
 static DISPLAY: Mutex<Option<Display>> = Mutex::new(None);
 
-/// The game's hooks, for `horizon_hooks::register`.
+/// The game's hooks, for `horizon_platform::hooks::register`.
 pub static HOOKS: Telemetry = Telemetry {
     session: LazyLock::new(|| Mutex::new(Session::default())),
 };
@@ -57,7 +57,7 @@ impl Hooks for Telemetry {
     /// A player who allows performance statistics also says what their slow frames spent their
     /// time in.
     fn wants_frame_steps(&self, home: &Path) -> bool {
-        horizon_telemetry::Consent::load(home).allows(horizon_telemetry::Kind::Perf)
+        crate::Consent::load(home).allows(crate::Kind::Perf)
     }
 
     fn world_shown(&self, since_opening: Duration) {
@@ -112,7 +112,7 @@ pub fn system(gpu: Option<&hooks::Gpu>) -> System {
     let mut system = System::detect_in(home.as_deref());
     if let Some(gpu) = gpu {
         system.vram_mb = match gpu.kind.as_str() {
-            "discrete" => horizon_telemetry::system::vram_mb(&gpu.vendor).unwrap_or(0),
+            "discrete" => crate::system::vram_mb(&gpu.vendor).unwrap_or(0),
             _ => 0,
         };
         system.gpu = gpu.name.clone();
@@ -184,20 +184,6 @@ pub fn keep_crash(report: &hooks::Crash<'_>) {
     }
 }
 
-/// Keeps a benchmark report (`--benchmark`) for the launcher to send, if the player allows
-/// benchmark uploads: the report as docs/benchmark-report.md defines it, dated to the day.
-pub fn keep_benchmark(home: &Path, report: &horizon_bench::Report) {
-    let Ok(data) = serde_json::to_value(report.for_upload()) else {
-        return;
-    };
-    if let Err(e) = outbox::push(
-        home,
-        &Item::new(Source::Game, crate::crash::build(), Payload::Benchmark(data)),
-    ) {
-        log::warn!("Horizon: could not keep the benchmark report to send: {e}");
-    }
-}
-
 /// One play session's performance, from entering a world to leaving it: frame and tick
 /// times as [`Timings`] (fixed size whatever the length), never the frames themselves.
 #[derive(Default)]
@@ -209,7 +195,7 @@ pub struct Session {
     /// The start was measured: only the first session carries it.
     title_measured: bool,
     to_world_ms: Option<u32>,
-    slow_frames: Vec<horizon_telemetry::payload::SlowFrames>,
+    slow_frames: Vec<crate::payload::SlowFrames>,
 }
 
 impl Session {
@@ -233,7 +219,7 @@ impl Session {
     /// more counts under the step it spent most of its time in (`slowest_step`, the game's
     /// `spans::culprit`).
     pub fn frame(&mut self, ms: f32, slowest_step: impl FnOnce() -> Option<(String, f32)>) {
-        use horizon_telemetry::payload::{SLOW_FRAME_MS, SlowFrames};
+        use crate::payload::{SLOW_FRAME_MS, SlowFrames};
         if ms >= SLOW_FRAME_MS {
             let (mut path, span_ms) = slowest_step().unwrap_or_default();
             // A path too long for the item keeps its last steps.
@@ -280,7 +266,7 @@ impl Session {
         gpu: Option<&hooks::Gpu>,
         settings: Settings,
     ) {
-        if horizon_telemetry::Consent::load(home).allows(horizon_telemetry::Kind::Perf)
+        if crate::Consent::load(home).allows(crate::Kind::Perf)
             && let Some(perf) = self.summary(gpu, settings)
         {
             let item = Item::new(Source::Game, version, Payload::Perf(perf));
@@ -328,7 +314,7 @@ fn peak_ram_mb() -> u32 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use horizon_telemetry::{Choices, Consent, Kind};
+    use crate::{Choices, Consent, Kind};
 
     fn home(name: &str) -> std::path::PathBuf {
         let dir = std::env::temp_dir().join(format!(
@@ -433,39 +419,6 @@ mod tests {
     }
 
     #[test]
-    fn benchmark_reports_need_their_own_consent_and_go_dated_to_the_day() {
-        let home = home("benchmark");
-        let mut report = horizon_bench::Report::new(horizon_bench::Kind::Game, Default::default());
-        report.created = "2026-10-15T14:03:27Z".into();
-        report.label = Some("my machine".into());
-        keep_benchmark(&home, &report);
-        allow(
-            &home,
-            Choices {
-                performance: true,
-                ..Choices::NONE
-            },
-        );
-        keep_benchmark(&home, &report);
-        assert!(outbox::pending(&home).is_empty());
-        allow(
-            &home,
-            Choices {
-                benchmarks: true,
-                ..Choices::NONE
-            },
-        );
-        keep_benchmark(&home, &report);
-        let pending = outbox::pending(&home);
-        assert_eq!(pending.len(), 1);
-        let text = serde_json::to_string(&pending[0].1).unwrap();
-        assert!(
-            text.contains("2026-10-15T00:00:00Z") && !text.contains("my machine"),
-            "{text}"
-        );
-    }
-
-    #[test]
     fn crashes_stay_local_without_consent() {
         let home = home("crash");
         let report = report();
@@ -559,22 +512,14 @@ mod tests {
     /// span counts under none. Faster frames leave no entry.
     #[test]
     fn slow_frames_are_put_down_to_their_step() {
-        use crate::spans::Span;
-        let span = |name, ms, depth| Span {
-            name,
-            ms,
-            cpu_ms: ms,
-            depth,
-        };
-        let culprit = |spans: &[Span]| crate::spans::culprit(spans);
+        // What the game's `spans::culprit` names for each frame.
+        let step = |path: &str, ms| move || Some((path.to_owned(), ms));
         let mut session = Session::default();
-        let ticking = [span("tick", 10.0, 0)];
-        (0..4000).for_each(|_| session.frame(16.6, || culprit(&ticking)));
-        let frozen = [span("r_uploads", 280.0, 1), span("renderer", 300.0, 0)];
-        session.frame(320.0, || culprit(&frozen));
-        session.frame(900.0, || culprit(&frozen));
-        session.frame(260.0, || culprit(&[]));
-        session.frame(249.0, || culprit(&frozen));
+        (0..4000).for_each(|_| session.frame(16.6, step("tick", 10.0)));
+        session.frame(320.0, step("renderer/r_uploads", 280.0));
+        session.frame(900.0, step("renderer/r_uploads", 280.0));
+        session.frame(260.0, || None);
+        session.frame(249.0, step("renderer/r_uploads", 280.0));
         let perf = session.summary(None, Settings::default()).unwrap();
         let seen: Vec<_> = perf
             .slow_frames

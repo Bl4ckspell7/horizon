@@ -20,12 +20,6 @@ pub fn main_with(mods: crate::mod_api::Mods) {
     }
     // The process's start, for the startup trace and the start's milestones.
     horizon_client::spans::startup::init(std::time::Instant::now());
-    // Opt-in telemetry (the play session's summary, each crash report, whatever the mode) plugs
-    // in through the hooks until it moves to a Horizon crate in horizon-official's parts (layer
-    // plan M5). horizon-extras: telemetry is Horizon's (docs/layers.md); without it nothing is
-    // kept.
-    #[cfg(feature = "horizon-extras")]
-    let _ = horizon_hooks::register(&horizon_client::telemetry::HOOKS);
     // Crates above the engine registered their hooks before this (horizon-official's `main`);
     // none registers after this point.
     horizon_hooks::engine::seal();

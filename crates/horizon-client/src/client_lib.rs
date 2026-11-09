@@ -139,7 +139,6 @@ pub mod stations;
 pub mod stopwatches;
 pub mod structure_blocks;
 pub mod studio;
-pub mod telemetry;
 pub mod text_display;
 pub mod tick_chunk_membership;
 pub mod ticket_levels;

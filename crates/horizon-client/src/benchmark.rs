@@ -311,7 +311,7 @@ fn run(control: &Control, setup: Setup) -> Result<PathBuf, String> {
     if let Ok(meta) = std::env::current_exe().and_then(std::fs::metadata) {
         report.metric("game.binary_bytes", &[meta.len() as f64]);
     }
-    crate::telemetry::keep_benchmark(&crate::logging::game_home(), &report);
+    keep_for_upload(&crate::logging::game_home(), &report);
     report
         .write_to(&setup.game_dir.join("benchmarks"))
         .map_err(|e| e.to_string())
@@ -468,9 +468,60 @@ impl RssSampler {
     }
 }
 
+/// Keeps the report for the launcher to send, if the player allows benchmark uploads: the report
+/// as docs/benchmark-report.md defines it, dated to the day (docs/telemetry.md).
+fn keep_for_upload(home: &Path, report: &Report) {
+    use horizon_telemetry::{Item, Payload, Source, outbox};
+    let Ok(data) = serde_json::to_value(report.for_upload()) else {
+        return;
+    };
+    let item = Item::new(Source::Game, crate::crash::build(), Payload::Benchmark(data));
+    if let Err(e) = outbox::push(home, &item) {
+        log::warn!("Horizon: could not keep the benchmark report to send: {e}");
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn reports_kept_for_upload_need_their_own_consent_and_go_dated_to_the_day() {
+        use horizon_telemetry::{Choices, Consent, outbox};
+        let home = std::env::temp_dir().join(format!(
+            "horizon-client-benchmark-upload-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&home);
+        std::fs::create_dir_all(&home).unwrap();
+        let allow = |choices: Choices| {
+            let mut consent = Consent::load(&home);
+            consent.answer(choices);
+            consent.save(&home).unwrap();
+        };
+        let mut report = Report::new(Kind::Game, Default::default());
+        report.created = "2026-10-15T14:03:27Z".into();
+        report.label = Some("my machine".into());
+        keep_for_upload(&home, &report);
+        allow(Choices {
+            performance: true,
+            ..Choices::NONE
+        });
+        keep_for_upload(&home, &report);
+        assert!(outbox::pending(&home).is_empty());
+        allow(Choices {
+            benchmarks: true,
+            ..Choices::NONE
+        });
+        keep_for_upload(&home, &report);
+        let pending = outbox::pending(&home);
+        assert_eq!(pending.len(), 1);
+        let text = serde_json::to_string(&pending[0].1).unwrap();
+        assert!(
+            text.contains("2026-10-15T00:00:00Z") && !text.contains("my machine"),
+            "{text}"
+        );
+    }
 
     #[test]
     fn scenarios() {
