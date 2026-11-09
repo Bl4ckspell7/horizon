@@ -637,7 +637,7 @@ fn params(m: &Mob, s: &State, frame: &Frame, rule_index: f32, slots: &mut [f32])
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mobs::cem_anim::set_frame;
+    use crate::mobs::cem_anim::{in_gui, set_frame};
 
     fn bone(name: &str, children: Vec<Part>) -> Part {
         Part {
