@@ -477,7 +477,8 @@ impl On<'_> {
                 reason: format!("Horizon anticheat: {}", check.name()),
             });
         } else if v.kick {
-            self.anticheat_kick(self.guests[i].conn);
+            let conn = self.guests[i].conn;
+            self.anticheat_kick(conn);
         } else if v.setback
             && !matches!(check, Check::Combat | Check::Ground)
             && self.guests[i].awaiting_teleport.is_none()
