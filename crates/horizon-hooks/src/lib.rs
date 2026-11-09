@@ -266,7 +266,9 @@ mod tests {
             true
         }
         fn frame(&self, frame: &Frame<'_>) {
-            let step = frame.slowest_step().map(|(name, ms)| format!(" {name} {ms}"));
+            let step = frame
+                .slowest_step()
+                .map(|(name, ms)| format!(" {name} {ms}"));
             self.0
                 .lock()
                 .unwrap()

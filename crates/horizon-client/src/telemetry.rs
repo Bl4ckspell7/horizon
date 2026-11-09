@@ -73,7 +73,9 @@ impl Hooks for Telemetry {
         let settings = Settings {
             render_distance: left.render_distance.clamp(0, 255) as u8,
             simulation_distance: left.simulation_distance.clamp(0, 255) as u8,
-            max_fps: left.max_fps.map_or(0, |f| f.min(u32::from(u16::MAX)) as u16),
+            max_fps: left
+                .max_fps
+                .map_or(0, |f| f.min(u32::from(u16::MAX)) as u16),
             vsync: left.vsync,
             fullscreen: left.fullscreen,
             graphics: left.graphics.to_owned(),
