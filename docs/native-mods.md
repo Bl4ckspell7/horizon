@@ -2836,7 +2836,7 @@ tick later with a command.
   `kind` its type) that fell `fall_distance` onto the farmland at `pos` is about to turn it to dirt, past vanilla's
   chance and checks (NeoForge's `FarmlandTrampleEvent`, Bukkit's `PlayerInteractEvent` `PHYSICAL` and
   `EntityInteractEvent`). Set `cancel` and the farmland and its crop stay; the fall damage is taken either way. Pressure
-  plates, tripwires and other blocks a player sets off by touching them are not heard yet. No `self`. Server-side.
+  plates and tripwires are `native_player_physical_trigger`. No `self`. Server-side.
 - **`native_projectile_world_border(dimension, entity, kind, pos, velocity, collide)`**: a thrown projectile (pearl,
   snowball, egg, potion...) inside the world border whose next step would end outside it, before 26.3 stops it on the
   border like a wall (MC-310476). A mod may change `pos` and `velocity`, or set `collide` false and it flies through
@@ -3436,6 +3436,14 @@ Bundles need "hooks": @API:hurt_entity@.
 For a mod that generates terrain of its own (a custom world generator, a far lands border, a void world with climate
 biomes) in some chunks or all of them, as Bukkit's `ChunkGenerator` does.
 
+- **`native_set_biomes(dimension, entries)`** (`native_biome_colors/native_biome_edit.rs`): sets biome cells in the loaded chunks of the
+  level being ticked, as `/fillbiome` does. `entries` is a list of `([qx, qy, qz], biome id)`: a cell is 4x4x4 blocks
+  and its position is the block coordinate shifted right by 2 (`qy` counts from world height 0, so it may be
+  negative). The columns changed are saved and their biomes sent to the players who have them
+  (`ChunkMap.resendBiomesForChunks`). Returns `Ok(cells changed)`: a cell that already holds the biome, a cell in a
+  chunk not loaded and a cell outside the column's height are left out. Returns `Err` with nothing changed for a
+  `dimension` that is not the level being ticked, a client of a server, or a biome id the level doesn't have
+  (`minecraft:plains`, or a data pack's own). API @API:set_biomes@.
 - **`native_world_seed()`** (`native_world_seed.rs`): the world's seed as `/seed` prints it (`WorldOptions.seed`,
   Bukkit's `World.getSeed`), the one every level generates from, for a preview that draws the terrain a chunk will get.
   None off a server: a client only knows a hash of its server's seed. API @API:world_seed@.
@@ -3607,6 +3615,12 @@ while no mod asks for it.
   sound when punched, used, or powered. Set `cancel` to silence it; when used to tune it, the note remains unchanged.
 - **`native_bell_ring(dimension, player, pos, cancel)`** (on `GameLevel`): a bell is about to ring. Set `cancel` to
   stop the ring and its raider reveal.
+- **`native_player_physical_trigger(dimension, player, pos, block, cancel)`** (on `GameLevel`): a player stands in a
+  pressure plate (wooden, stone, weighted) or a tripwire `block` at `pos` and would set it off (Bukkit's
+  `PlayerInteractEvent` with `Action.PHYSICAL`). Asked each time the block counts what is inside it, before the
+  effect, for every player in it. Set `cancel` and that player is not counted: the plate stays unpowered and the wire
+  untripped for them, while another player or mob still sets it off. Farmland and turtle eggs a player lands on are
+  `native_trample` and `native_entity_change_block_v2`; redstone ore, big dripleaf and sculk are not heard yet.
 - **`native_cauldron_level_changed(dimension, player, pos, from_level, to_level, reason, cancel)`** (on `GameLevel`):
   precipitation, dripstone, or a burning player being extinguished is about to change a cauldron's level. Set `cancel`
   to leave it as it was.
@@ -3805,6 +3819,13 @@ a dimension.
 - `level.seed(host)`, `difficulty` (`"normal"`, as `/difficulty` names it), `game_rule(host, "keep_inventory")` (a
   `GameRuleValue`, `Bool` or `Int`; None for an unknown rule), `weather` (rain and thunder levels, 0.0 to 1.0; both 0
   where the level has no weather), `is_raining` and `is_thundering` read its world settings.
+- `level.set_day_time(host, ticks)` is `/time set` on the overworld clock (mods hear `time_skip` with cause `mod` and can
+  keep the old time), `set_game_rule(host, "advance_time", GameRuleValue::Bool(false))` is `/gamerule` (`advance_time` and
+  `advance_weather` freeze and unfreeze the day clock and the weather cycle), and `set_weather(host, clear_time,
+  weather_time, raining, thundering)` is `/weather` (`ServerLevel.setWeatherParameters`; mods hear `weather_change` and
+  `thunder_change` and can keep the old state). They return false for a negative time, an unknown rule or a value of the
+  wrong kind or range, a level without weather or not the one in place, a client, a handle of an earlier open, or when a
+  mod kept the old state. Bundles need `"hooks": @API:level_world_setters@`.
 - `host.living(entity)` gives a `LivingRef` for a mob, a player, an armor stand or the dragon (vanilla's
   `LivingEntity`); `living.entity()` goes back. `living.equipment(host, EquipmentSlot::Head)` and `hand_item(host,
   Hand::Main)` read its equipment (an empty slot reads as `None`); `set_equipment(host, slot, stack)` puts a stack in a
@@ -4307,6 +4328,24 @@ It names the level it means by its `dimension` (`minecraft:overworld`), as `nati
   height, are left out. It answers `Err`, changing nothing, on a client, for another dimension, a palette entry or filter
   that doesn't read or carries NBT (`chest{...}`: refused, set states only), a run naming a palette entry or filter past
   the end, or more than 65536 filters.
+- Block entity data: `NativeBlockEdit.block_entities` lists `NativeBlockNbt { x, y, z, nbt }` entries (SNBT), loaded after
+  every run as `/setblock ... {nbt}` loads it, so a chest placed by a run keeps the `Items` given. An entry whose position
+  holds no block entity, or whose `id` names another type (`chest` reads as `minecraft:chest`), is skipped and the block
+  stays as the runs made it; NBT that doesn't read is an `Err`, changing nothing. Palette entries still carry no NBT. The
+  data is loaded before any neighbour is told (`neighbour_updates`), and heightmaps, light and the sections' emptiness
+  follow the blocks changed. `NativeBlockEdit` gains fields as the API grows (`block_entities` in API
+  @API:edit_blocks_nbt@): build it with `..Default::default()`, as a struct literal naming every field stops compiling.
+- `native_set_block_entity(dimension, pos, nbt)` loads SNBT into the block entity at `pos` the same way and answers
+  whether it was accepted (false: another dimension, a client, a chunk not loaded, no block entity there, NBT that isn't
+  a compound, or an `id` that isn't the entity's type). `native_block_entity_nbt(dimension, pos)` answers its saved NBT as
+  SNBT (`/data get block`), None where there is none. API @API:edit_blocks_nbt@.
+
+- `native_may_build(player, name, dimension, pos, action)` asks whether a player may edit one block, for edits that skip
+  the normal place and break path (this one included): `action` is `place` or `break`, any other is refused. It asks
+  every mod's `native_can_build(player, name, dimension, pos, action, cancel)` hook, a region-protection mod's chance to
+  say no; any mod setting `cancel` denies the edit, and with no such mod it is allowed. Nothing asks it for you: a mod
+  that edits for a player asks it for the positions it is about to change, and leaves out those it is refused.
+  Bundles need "hooks": @API:can_build@.
 
 ### Machines
 
@@ -4442,6 +4481,18 @@ Where this differs from NeoForge, and its limits today:
   owners you hold for, or a chunk stays held until the server stops.
 - A chunk past the world's edge (beyond 30,000,000 blocks, as `/forceload` refuses) is refused. Each ticket keeps a
   5x5 ring loaded and the forced set is scanned per column: keep to what a machine needs (dozens, not thousands).
+
+Asking for a chunk without waiting for it (Paper's `getChunkAtAsync` with a plugin ticket), API @API:chunk_load_async@:
+
+- `native_chunk_load_request(owner, dimension, [x, z])` takes a ticket as `native_force_chunk_in` does and returns at
+  once; the chunk comes in over the next ticks, loaded or generated, and stays loaded and ticking until released. True
+  when the request is new.
+- `native_chunk_load_state(owner, dimension, [x, z])` is `NativeChunkLoad::Pending` while it comes in,
+  `Loaded` once it is loaded, `Failed` when `owner` holds no request for it (refused, or released). Loads nothing.
+- `native_chunk_is_loaded(dimension, [x, z])` says whether a chunk is loaded now, in place or in a level open with
+  nobody in it. It loads and generates nothing and does not open a level.
+- `native_chunk_load_release(owner, dimension, [x, z])` lets go of the request; the chunk unloads once nothing else
+  holds it. A request is a ticket, so `native_forced_chunks(owner)` lists it and the limits above apply.
 
 ### Mod messages
 
@@ -4842,6 +4893,17 @@ placement counts and takes from the player's inventory first, then the sources i
 `ServerPlaceRecipe` matching. What the grid held goes back to the player as vanilla's does. A changed source is saved
 and its comparators update. Every mod adds to the same list. With no answer the placement is vanilla's, from the
 inventory alone. A recipe viewer's craftable marks are still worked out on the client from the player's inventory.
+
+### Loot odds
+
+`native_loot_odds(table, tool)` (`host.loot_odds`) works out what one roll of the world's loot table `table` gives, its
+data packs merged: one `NativeLootOdds` per item, with its chance to come at least once, the fewest one drop gives and
+the most the table gives at once, and the conditions on its way it could not judge, taken as met and named
+(`needs a brush`, `without a brush`, `in certain weather`). Weights, rolls (constant, uniform and binomial),
+alternatives, groups, sequences, nested tables, `random_chance` and set counts count; luck and enchantments are none
+(`table_bonus` and `random_chance_with_enchanted_bonus` take their unenchanted chances). With `tool`
+(`minecraft:brush`), `match_tool` conditions are judged with that item in hand, so a block table brushed shows only
+what a brush sifts out. Conditions are taken as independent of each other. None when there is no such table.
 
 ### Recipe viewers: lookups and categories
 
