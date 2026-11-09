@@ -11,7 +11,8 @@
 //! Lectern and enchanting-table books take theirs, else `book`. Signs, hanging signs and beds are
 //! block models here, so their files are not read; copper golem statues have no CEM name.
 
-use crate::block_entity_render::{ModelPart, Reshaped};
+use crate::block_entity_render::ModelPart;
+use crate::pack_hooks::Reshaped;
 use horizon_optifine::cem::{
     files::{atlas_name, jem_files, load_jem},
     model::{Bone, EntityModel},
