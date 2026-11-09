@@ -153,9 +153,16 @@ fn the_saved_hurt_by_mob_follows_the_live_record_only() {
     let a = game.mobs[a_index].id;
     // No record, no raw copy: nothing.
     assert_eq!(fields(&mut game, victim), (None, None), "no record");
-    // A raw copy from the summon, no live record: both keys go.
+    // The summon's data is read back (`readAdditionalSaveData`): A, 0 ticks ago.
     let echo = index(&mut game, ECHO);
-    assert_eq!(fields(&mut game, echo), (None, None), "stale raw copy");
+    assert_eq!(
+        fields(&mut game, echo),
+        (
+            Some(Tag::IntArray(vec![24724, 0, 0, 2])),
+            Some(Tag::Int(0))
+        ),
+        "read back from the summon"
+    );
     // A live record of a resident mob: both keys, at 100 ticks still.
     let age = game.mobs[victim].age as i32;
     game.mobs[victim].ai.last_hurt_by = Some(Who::Mob(a));
