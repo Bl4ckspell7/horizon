@@ -760,6 +760,21 @@ pub struct MeshTables {
     colormaps: Vec<Arc<dyn crate::environment::BlockColormap>>,
     water_colormap: Option<u16>,
 }
+/// The tints that read each of vanilla's biome colour functions (`BiomeColors`).
+fn biome_function_tints(function: crate::environment::BiomeFunction) -> &'static [Tint] {
+    use crate::environment::BiomeFunction;
+    match function {
+        BiomeFunction::Grass => &[
+            Tint::Grass,
+            Tint::GrassBlock,
+            Tint::TallGrassUpper,
+            Tint::SugarCane,
+        ],
+        BiomeFunction::Foliage => &[Tint::Foliage],
+        BiomeFunction::DryFoliage => &[Tint::DryFoliage],
+        BiomeFunction::Water => &[Tint::Water],
+    }
+}
 fn stem_color(age: u8) -> u32 {
     let a = u32::from(age);
     (a * 32) << 16 | (255 - a * 8) << 8 | (a * 4)
@@ -944,7 +959,8 @@ impl MeshTables {
     }
     /// These tables with the colormaps of the Polytone block and fluid modifiers of the packs
     /// merged at `pack_root` (wiki "Colormaps"): a tinted block they target takes its colour
-    /// from the colormap, and its own tint where the colormap's pixel is transparent.
+    /// from the colormap, and its own tint where the colormap's pixel is transparent. Vanilla's
+    /// four biome colour functions take the packs' `biome_colors` first (wiki "Custom Colors").
     #[must_use]
     pub fn with_polytone_colormaps(
         mut self,
@@ -953,7 +969,8 @@ impl MeshTables {
     ) -> Self {
         let formats = crate::pack_hooks::formats();
         let modifiers = formats.colormap_targets(pack_root);
-        if modifiers.is_empty() {
+        let biome_functions = formats.biome_colormaps(pack_root, &modifiers);
+        if modifiers.is_empty() && biome_functions.is_empty() {
             return self;
         }
         let mut loaded: std::collections::HashMap<String, Option<u16>> = Default::default();
@@ -964,8 +981,26 @@ impl MeshTables {
                     Some((colormaps.len() - 1) as u16)
                 })
             };
+        for (function, colormap) in biome_functions {
+            let tints = biome_function_tints(function);
+            self.colormaps.push(colormap);
+            let i = Some((self.colormaps.len() - 1) as u16);
+            if function == crate::environment::BiomeFunction::Water {
+                self.water_colormap = i;
+            }
+            for info in &mut self.info {
+                let own = &info.tints[..usize::from(info.tint_count).min(2)];
+                if own.iter().any(|t| tints.contains(t)) {
+                    info.colormap = i;
+                }
+            }
+        }
+        let water_function = self.water_colormap;
         for modifier in &modifiers {
             let (targets, id) = (&modifier.targets, &modifier.colormap);
+            if modifier.fluid && water_function.is_some() {
+                continue;
+            }
             if modifier.fluid {
                 if targets("minecraft:water") {
                     self.water_colormap = index(id, &mut self.colormaps);
@@ -1496,9 +1531,9 @@ struct Tints<'a> {
     /// by colormap and section-local block.
     colormaps: &'a [Arc<dyn crate::environment::BlockColormap>],
     water_colormap: Option<u16>,
-    sampled: std::collections::HashMap<(u16, [i32; 3]), Option<u32>>,
+    sampled: crate::fast_hash::FxHashMap<(u16, [i32; 3]), Option<u32>>,
     /// Each colormap's own colour by block, before the blend averages them.
-    cells: std::collections::HashMap<(u16, [i32; 3]), Option<u32>>,
+    cells: crate::fast_hash::FxHashMap<(u16, [i32; 3]), Option<u32>>,
 }
 impl<'a> Tints<'a> {
     fn new(
@@ -1519,8 +1554,8 @@ impl<'a> Tints<'a> {
             uniform: None,
             colormaps: &[],
             water_colormap: None,
-            sampled: std::collections::HashMap::new(),
-            cells: std::collections::HashMap::new(),
+            sampled: Default::default(),
+            cells: Default::default(),
         }
     }
     /// With the packs' colormaps of `tables`.
@@ -1532,10 +1567,16 @@ impl<'a> Tints<'a> {
     /// Colormap `index`'s colour at block `(x, y, z)` (section-local), `None` where its pixel
     /// is transparent.
     fn colormap(&mut self, index: u16, x: i32, y: i32, z: i32) -> Option<u32> {
+        let colormap = self.colormaps.get(usize::from(index))?.clone();
+        // A colormap that ignores the height, over one biome: one colour per column.
+        let y = if colormap.column() && self.uniform_biome().is_some() {
+            0
+        } else {
+            y
+        };
         if let Some(&known) = self.sampled.get(&(index, [x, y, z])) {
             return known;
         }
-        let colormap = self.colormaps.get(usize::from(index))?.clone();
         // ClientLevel.calculateBlockTint: the mean of the (2r+1)^2 colours around the block, each
         // channel summed and divided. A transparent pixel in the square leaves the block's own.
         let r = if colormap.biome_blend() {
@@ -1578,7 +1619,11 @@ impl<'a> Tints<'a> {
         if let Some(&known) = self.cells.get(&(index, at)) {
             return known;
         }
-        let id = Self::biome_id(&self.zoom, self.region, self.plains, self.origin, at);
+        // One biome over the section and its blend margin: no zoom per block.
+        let id = match self.uniform_biome() {
+            Some(biome) => biome,
+            None => Self::biome_id(&self.zoom, self.region, self.plains, self.origin, at),
+        };
         let [cx, cz, base_y] = self.origin;
         let block = [cx * 16 + at[0], base_y + at[1], cz * 16 + at[2]];
         let colour = colormap
