@@ -2841,10 +2841,17 @@ dependencies = [
 ]
 
 [[package]]
-name = "horizon-shader-api"
+name = "horizon-render-pipeline"
 version = "0.1.0"
 dependencies = [
  "bytemuck",
+]
+
+[[package]]
+name = "horizon-shader-api"
+version = "0.1.0"
+dependencies = [
+ "horizon-render-pipeline",
  "naga",
  "png 0.18.1",
  "serde",
