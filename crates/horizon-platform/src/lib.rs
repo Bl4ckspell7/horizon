@@ -47,7 +47,7 @@ pub use horizon_server_files as server_files;
 /// in"). The engine's dispatch side is not part of the API.
 pub mod hooks {
     pub use horizon_hooks::{
-        Crash, Display, Frame, Gpu, Hooks, Milestone, Started, TooLate, WorldLeft, register,
+        Crash, Display, Frame, Gpu, Hooks, Milestone, Started, TooLate, WorldLeft, register, tunnel,
     };
 }
 
@@ -55,4 +55,14 @@ pub mod hooks {
 /// folder, loaded and saved with the player's settings (docs/layers.md, "Platform registries").
 pub mod settings {
     pub use horizon_hooks::settings::{Store, register};
+}
+
+/// Settings pages a crate adds to the options screens (docs/layers.md, "Platform registries").
+pub mod pages {
+    pub use horizon_hooks::pages::{Act, Label, Page, Place, Row, register};
+}
+
+/// Drawing on the HUD (docs/layers.md, "Platform registries").
+pub mod hud {
+    pub use horizon_hooks::hud::{Canvas, Corner, Layer, register};
 }
