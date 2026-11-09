@@ -113,6 +113,7 @@ pub trait PackFormats: Send + Sync {
 
     /// The creative tab modifiers of the packs merged at `root`, in load order.
     fn creative_tab_modifiers(&self, _root: &Path) -> Vec<Box<dyn TabModifier>> {
+        Vec::new()
     }
 
     /// The colormaps the overlay puts in place of vanilla's biome colour functions, given its
