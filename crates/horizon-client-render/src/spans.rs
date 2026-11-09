@@ -351,11 +351,6 @@ pub mod trace {
         }
     }
 
-    /// The time since the process started ([`init`]'s origin; zero before it).
-    pub fn since_start() -> Duration {
-        ORIGIN.get().map_or(Duration::ZERO, Instant::elapsed)
-    }
-
     /// Whether a trace is being written.
     #[inline]
     pub fn on() -> bool {
@@ -492,6 +487,11 @@ pub mod startup {
             std::fs::File::create(&path).ok().map(Mutex::new)
         });
         ON.store(sink.is_some(), Ordering::Relaxed);
+    }
+
+    /// The time since the process started ([`init`]'s origin; zero before it).
+    pub fn since_start() -> Duration {
+        ORIGIN.get().map_or(Duration::ZERO, Instant::elapsed)
     }
 
     /// Whether a trace is being written.
