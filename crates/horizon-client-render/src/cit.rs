@@ -193,8 +193,6 @@ impl CitRules {
         max_damage: u32,
         foil: bool,
     ) -> Option<Arc<StackGlint>> {
-        self.matcher
-            .as_ref()?
-            .glint(stack, hand, max_damage, foil)
+        self.matcher.as_ref()?.glint(stack, hand, max_damage, foil)
     }
 }

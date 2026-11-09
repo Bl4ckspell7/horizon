@@ -5,8 +5,8 @@
 //! vanilla's glint's is. Without enchantment rules nothing here is made.
 
 use super::HudVertex;
-use crate::gfx::hud_coverage::Pipeline;
 use crate::cit::{Blend, Factor, Kind, Rule};
+use crate::gfx::hud_coverage::Pipeline;
 use std::path::Path;
 
 /// Slots the shader's table holds; rules past it draw no layer (and match no stack).
