@@ -305,7 +305,12 @@ mod tests {
         engine::shutdown();
         assert_eq!(
             *RECORDER.0.lock().unwrap(),
-            ["started 0.2.31", "published true", "published false", "ended lost"]
+            [
+                "started 0.2.31",
+                "published true",
+                "published false",
+                "ended lost"
+            ]
         );
         assert_eq!(register(&Silent), Err(TooLate));
     }

@@ -33,7 +33,12 @@ impl LastServer {
         engine::left();
     }
     /// The connection ended: the attempt a hook plans, if any.
-    pub fn ended(&mut self, reason: &str, key: Option<&str>, from_server: bool) -> Option<Reconnect> {
+    pub fn ended(
+        &mut self,
+        reason: &str,
+        key: Option<&str>,
+        from_server: bool,
+    ) -> Option<Reconnect> {
         let plan = engine::ended(&Ended::new(reason, key, from_server));
         if plan.is_none() {
             self.forget();
