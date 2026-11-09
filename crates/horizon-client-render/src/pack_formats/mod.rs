@@ -53,7 +53,7 @@ impl PackFormats for Formats {
         &self,
         root: &Path,
         vanilla: &std::collections::HashMap<&'static str, crate::block_entity_render::ModelPart>,
-    ) -> Option<crate::block_entity_render::Reshaped> {
+    ) -> Option<crate::pack_hooks::Reshaped> {
         block_entity_cem::reshape(root, vanilla)
     }
 
