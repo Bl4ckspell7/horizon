@@ -23,7 +23,9 @@ pub fn main_with(mods: crate::mod_api::Mods) {
     // Opt-in telemetry keeps each crash report (docs/telemetry.md), whatever the mode.
     crash::on_report(horizon_client::telemetry::keep_crash);
     // Opt-in telemetry's play session plugs in through the hooks until it moves to a Horizon
-    // crate in horizon-official's parts (layer plan M5).
+    // crate in horizon-official's parts (layer plan M5). horizon-extras: telemetry is Horizon's
+    // (docs/layers.md); without it no session is kept.
+    #[cfg(feature = "horizon-extras")]
     let _ = horizon_hooks::register(&horizon_client::telemetry::HOOKS);
     // Crates above the engine registered their hooks before this (horizon-official's `main`);
     // none registers after this point.
