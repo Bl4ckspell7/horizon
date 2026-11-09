@@ -1078,3 +1078,95 @@ mod pack_tests {
         assert_eq!(sky("minecraft:plains"), [128.0 / 255.0; 3]);
     }
 }
+
+/// The colormaps a pack's files give: their axes and the biome functions they replace.
+#[cfg(test)]
+mod colormap_tests {
+    use super::*;
+    use crate::biome::Biomes;
+
+    fn pack(files: &[(&str, Vec<u8>)]) -> std::path::PathBuf {
+        static NEXT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+        let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let root =
+            std::env::temp_dir().join(format!("horizon-pack-colormap-{}-{n}", std::process::id()));
+        for (path, bytes) in files {
+            let path = root.join(path);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(path, bytes).unwrap();
+        }
+        root
+    }
+
+    fn png_row(pixels: &[[u8; 4]]) -> Vec<u8> {
+        let mut out = Vec::new();
+        let mut encoder = png::Encoder::new(&mut out, pixels.len() as u32, 1);
+        encoder.set_color(png::ColorType::Rgba);
+        encoder.set_depth(png::BitDepth::Eight);
+        let mut writer = encoder.write_header().unwrap();
+        writer.write_image_data(&pixels.concat()).unwrap();
+        writer.finish().unwrap();
+        out
+    }
+
+    #[test]
+    fn biome_colors_and_a_grass_block_colormap_replace_their_whole_biome_function() {
+        let biomes = Biomes::from_jsons(&[(
+            "minecraft:plains",
+            serde_json::json!({"effects": {"water_color": 0x3F76E4}}),
+        )]);
+        // biome_colors gives water a flat green; a block modifier colours oak leaves with a map,
+        // which Polytone spreads to the whole foliage function.
+        let root = pack(&[
+            (
+                "assets/mypack/polytone/colors.json",
+                br#"{"biome_colors": {"water": "0x00ff00"}}"#.to_vec(),
+            ),
+            (
+                "assets/mypack/polytone/colormaps/leaves.png",
+                png_row(&[[0, 0, 255, 255]]),
+            ),
+            (
+                "assets/mypack/polytone/block_modifiers/oak.json",
+                br#"{"targets": ["minecraft:oak_leaves"], "colormap": "mypack:leaves"}"#.to_vec(),
+            ),
+        ]);
+        let functions = biome_colormaps(&root, &colormap_targets(&root));
+        let names: Vec<_> = functions.iter().map(|(f, _)| *f).collect();
+        assert_eq!(names, [BiomeFunction::Foliage, BiomeFunction::Water]);
+        let rgb = |i: usize| {
+            functions[i]
+                .1
+                .sample([3, 68, 5], biomes.get(0))
+                .map(|c| c & 0xFF_FFFF)
+        };
+        assert_eq!((rgb(0), rgb(1)), (Some(0x00_00FF), Some(0x00_FF00)));
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn only_a_colormap_that_ignores_the_height_is_shared_up_a_column() {
+        let root = pack(&[
+            (
+                "assets/mypack/polytone/colormaps/flat.png",
+                png_row(&[[1, 2, 3, 255]]),
+            ),
+            (
+                "assets/mypack/polytone/colormaps/flat.json",
+                br#"{"x_axis": "biome_id", "y_axis": "r.noise(o.x/60, o.z/60)"}"#.to_vec(),
+            ),
+            (
+                "assets/mypack/polytone/colormaps/tall.png",
+                png_row(&[[1, 2, 3, 255]]),
+            ),
+            (
+                "assets/mypack/polytone/colormaps/tall.json",
+                br#"{"y_axis": "y_level"}"#.to_vec(),
+            ),
+        ]);
+        let load = |id| Colormap::load(&root, id).unwrap();
+        assert!(load("mypack:flat").column());
+        assert!(!load("mypack:tall").column());
+        std::fs::remove_dir_all(root).unwrap();
+    }
+}
