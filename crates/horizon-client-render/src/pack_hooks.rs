@@ -35,6 +35,11 @@ pub trait PackFormats: Send + Sync {
         None
     }
 
+    /// The overlay's custom item texture rules and their matcher.
+    fn item_textures(&self, _root: &Path) -> Option<crate::cit::CitRules> {
+        None
+    }
+
     /// The sky layers the overlay draws over the vanilla sky, if it has any.
     fn custom_sky(&self, _root: &Path) -> Option<Arc<dyn crate::custom_sky::SkyLayers>> {
         None
