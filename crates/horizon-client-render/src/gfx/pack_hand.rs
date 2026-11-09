@@ -270,7 +270,7 @@ fn translucent_quad(quad: &[Vertex]) -> bool {
 /// outside block entities, and `currentRenderedItemId`.
 fn draw_slot(id: i32, translucent: bool) -> [u8; SLOT as usize] {
     let mut bytes = [0u8; SLOT as usize];
-    let stage = horizon_shaders::render_stage(if translucent {
+    let stage = horizon_render_pipeline::render_stage(if translucent {
         "HAND_TRANSLUCENT"
     } else {
         "HAND_SOLID"

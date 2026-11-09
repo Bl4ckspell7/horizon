@@ -6,7 +6,7 @@
 
 use std::ops::Range;
 
-use horizon_shaders::render_stage;
+use horizon_render_pipeline::render_stage;
 
 use super::Vertex;
 use super::pack_draw::EntitySpan;

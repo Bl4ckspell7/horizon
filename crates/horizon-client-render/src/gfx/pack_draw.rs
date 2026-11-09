@@ -2,7 +2,7 @@
 //! translator's `DRAW_UNIFORMS`): one slot per render stage of a uniform buffer, picked with a
 //! dynamic offset at each draw.
 
-use horizon_shaders::{RENDER_STAGES, render_stage};
+use horizon_render_pipeline::{RENDER_STAGES, render_stage};
 
 /// Where a run of `Frame::entities` begins, and what it is (slice 7): the run lasts until the
 /// next span. Recorded only while a shader pack draws entities, so Horizon's own frames carry

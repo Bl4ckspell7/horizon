@@ -2,7 +2,10 @@
 //! which of them a program's sampler reads.
 
 use horizon_render_pipeline::Kind;
-use horizon_shaders::{CustomTexture, Group, Texels, Texture, TextureDim, TextureSource};
+use horizon_render_pipeline::textures::{
+    CustomTexture, Dim as TextureDim, EVERY_STAGE, Texels, Texture, TextureSource,
+};
+use horizon_shaders::Group;
 
 /// What a custom texture is once uploaded: an image of ours, or one the game already has.
 pub(super) enum Image {
@@ -127,16 +130,16 @@ pub(super) fn find(textures: &[PackTexture], group: Group, ty: &str, name: &str)
                 || buffer.is_some() && horizon_render_pipeline::buffer_index(&t.name) == buffer)
     });
     staged.or_else(|| {
-        textures.iter().position(|t| {
-            t.stage == horizon_shaders::EVERY_STAGE && t.dimension == dimension && t.name == name
-        })
+        textures
+            .iter()
+            .position(|t| t.stage == EVERY_STAGE && t.dimension == dimension && t.name == name)
     })
 }
 
 /// The `shaders.properties` key a texture came from, for notes.
 fn key(stage: &str, name: &str) -> String {
     match stage {
-        horizon_shaders::EVERY_STAGE => format!("customTexture.{name}"),
+        EVERY_STAGE => format!("customTexture.{name}"),
         _ => format!("texture.{stage}.{name}"),
     }
 }
@@ -351,7 +354,7 @@ mod tests {
     #[test]
     fn custom_textures_reach_every_program() {
         use wgpu::TextureViewDimension as D;
-        let every = horizon_shaders::EVERY_STAGE;
+        let every = EVERY_STAGE;
         let textures = [
             lightmap(every, "texClouds", D::D3),
             lightmap("composite", "texClouds", D::D3),

@@ -1576,7 +1576,7 @@ fn bindings(
             // pack of ours (#9064) bound it over `gaux2` and `noisetex` but not over names of its
             // own, where a raw texture was bound; this rule is a fit to those cases.
             let unbound = t.png
-                && t.stage != horizon_shaders::EVERY_STAGE
+                && t.stage != horizon_render_pipeline::textures::EVERY_STAGE
                 && source(&s.name, false, true, false) == Source::Dummy;
             !unbound
                 && (t.stage != pack_textures::stage(group)
@@ -6067,7 +6067,7 @@ mod tests {
             texture("composite", "tr", false),
             texture("composite", "gaux2", true),
             texture("composite", "noisetex", true),
-            texture(horizon_shaders::EVERY_STAGE, "cp", true),
+            texture(horizon_render_pipeline::textures::EVERY_STAGE, "cp", true),
         ];
         let names = ["tp", "tr", "gaux2", "noisetex", "cp"];
         let interface = horizon_shaders::Interface {

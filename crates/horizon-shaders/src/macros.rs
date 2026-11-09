@@ -3,6 +3,8 @@
 
 use std::collections::BTreeMap;
 
+pub use horizon_render_pipeline::{RENDER_STAGES, render_stage};
+
 /// The feature flags of `iris.features.*` (spec 3.2) Horizon has. A pack that requires one of
 /// them loads; one it lacks is noted. Horizon defines no `IRIS_FEATURE_<name>` macro for them
 /// (spec OQ-2, docs/cleanroom/README.md): that macro family names another loader, so packs take
@@ -59,34 +61,6 @@ struct Macro {
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Macros(BTreeMap<String, Macro>);
 
-/// `MC_RENDER_STAGE_*` in the order the stages draw (spec 5.4); each is its index (OQ-7).
-pub const RENDER_STAGES: [&str; 24] = [
-    "NONE",
-    "SKY",
-    "SUNSET",
-    "CUSTOM_SKY",
-    "SUN",
-    "MOON",
-    "STARS",
-    "VOID",
-    "TERRAIN_SOLID",
-    "TERRAIN_CUTOUT_MIPPED",
-    "TERRAIN_CUTOUT",
-    "ENTITIES",
-    "BLOCK_ENTITIES",
-    "DESTROY",
-    "OUTLINE",
-    "DEBUG",
-    "HAND_SOLID",
-    "TERRAIN_TRANSLUCENT",
-    "TRIPWIRE",
-    "PARTICLES",
-    "CLOUDS",
-    "RAIN_SNOW",
-    "WORLD_BORDER",
-    "HAND_TRANSLUCENT",
-];
-
 /// `DH_BLOCK_*`, each its index: Distant Horizons' block materials.
 pub const DH_BLOCK_MATERIALS: [&str; 16] = [
     "UNKNOWN",
@@ -106,14 +80,6 @@ pub const DH_BLOCK_MATERIALS: [&str; 16] = [
     "AIR",
     "ILLUMINATED",
 ];
-
-/// The value of `MC_RENDER_STAGE_<name>` (OQ-7: its index in `RENDER_STAGES`).
-pub fn render_stage(name: &str) -> u32 {
-    RENDER_STAGES
-        .iter()
-        .position(|s| *s == name)
-        .unwrap_or_else(|| panic!("no render stage {name}")) as u32
-}
 
 impl Macros {
     /// The standard macros that need no renderer (spec 1.5.1): `MC_VERSION`, this system's

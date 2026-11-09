@@ -5,6 +5,7 @@
 //! `shaders/` packs). No wgpu and no pack file here.
 //!
 //! - [`config`]: the colortex buffers and the shadow map: formats, clearing, mipmaps, settings.
+//! - [`textures`]: the custom textures the programs read; [`RENDER_STAGES`]: the stages they draw in.
 //! - [`stages`], [`inputs`], [`Api`]: the WGSL stage interface Horizon's own packs are written
 //!   against (`horizon-shader-api` reads and checks those packs): the stages' functions, preludes,
 //!   bindings and entry points, and the frame uniform the renderer fills.
@@ -12,7 +13,9 @@
 mod api;
 pub mod config;
 pub mod inputs;
+mod render_stage;
 pub mod stages;
+pub mod textures;
 
 pub use api::Api;
 pub use config::{
@@ -20,4 +23,5 @@ pub use config::{
     shadow_color,
 };
 pub use inputs::Frame;
+pub use render_stage::{RENDER_STAGES, render_stage};
 pub use stages::StageKind;
