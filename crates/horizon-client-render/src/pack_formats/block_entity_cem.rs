@@ -11,7 +11,7 @@
 //! Lectern and enchanting-table books take theirs, else `book`. Signs, hanging signs and beds are
 //! block models here, so their files are not read; copper golem statues have no CEM name.
 
-use crate::block_entity_render::ModelPart;
+use crate::block_entity_render::{ModelPart, Reshaped};
 use horizon_optifine::cem::{
     files::{atlas_name, jem_files, load_jem},
     model::{Bone, EntityModel},
@@ -139,12 +139,6 @@ const TARGETS: &[Target] = &[
     model("decorated_pot_base", &["decorated_pot"], POT_BASE),
     model("decorated_pot_sides", &["decorated_pot"], POT_SIDES),
 ];
-
-/// Every model, reshaped or vanilla's, and the atlas names of the `.jem` textures by model.
-pub type Reshaped = (
-    HashMap<&'static str, ModelPart>,
-    HashMap<&'static str, String>,
-);
 
 /// The models the packs under `root` reshape, over `vanilla`'s; None when no block entity has
 /// a `.jem` there.

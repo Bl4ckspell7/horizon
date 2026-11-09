@@ -3,6 +3,7 @@
 //! crate until the platform's executable installs it: it uses only the crate's public API, so it
 //! moves to a platform crate unchanged, and nothing else in the crate names it.
 
+pub(crate) mod block_entity_cem;
 pub mod cit;
 mod cit_glint;
 mod colors;
@@ -46,6 +47,14 @@ impl PackFormats for Formats {
 
     fn entity_textures(&self, root: &Path) -> Option<crate::entity_textures::EntityTextures> {
         Some(entity_textures::load(root))
+    }
+
+    fn block_entity_models(
+        &self,
+        root: &Path,
+        vanilla: &std::collections::HashMap<&'static str, crate::block_entity_render::ModelPart>,
+    ) -> Option<crate::block_entity_render::Reshaped> {
+        block_entity_cem::reshape(root, vanilla)
     }
 
     fn custom_sky(&self, root: &Path) -> Option<Arc<dyn crate::custom_sky::SkyLayers>> {
