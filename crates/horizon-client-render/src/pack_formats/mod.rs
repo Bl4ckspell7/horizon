@@ -13,6 +13,7 @@ mod custom_sky;
 mod entity_textures;
 pub mod environment;
 mod fusion;
+mod item_bars;
 mod pack_options;
 mod post;
 
@@ -105,6 +106,17 @@ impl PackFormats for Formats {
         }
     }
 
+    fn biome_colormaps(
+        &self,
+        root: &Path,
+        modifiers: &[crate::environment::ColormapTarget],
+    ) -> Vec<(
+        crate::environment::BiomeFunction,
+        Arc<dyn crate::environment::BlockColormap>,
+    )> {
+        environment::biome_colormaps(root, modifiers)
+    }
+
     fn pack_options(&self, source: &crate::packs::Source) -> Option<horizon_pack_options::Configs> {
         Some(pack_options::read(source))
     }
@@ -124,6 +136,10 @@ impl PackFormats for Formats {
         options: &horizon_pack_options::Configs,
     ) -> Option<Vec<u8>> {
         horizon_polytone::pack::sounds_without_unmet(text, options)
+    }
+
+    fn item_bars(&self, root: &Path) -> Option<Arc<dyn crate::pack_palette::ItemBars>> {
+        item_bars::read(root)
     }
 }
 
