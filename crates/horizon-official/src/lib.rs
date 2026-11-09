@@ -27,9 +27,11 @@ const PARTS: [&dyn Hooks; 2] = [
 const LANG: [&lang::Files; 1] = [horizon_friends::game::LANG];
 
 /// The pages Horizon's parts add to the game's menus.
-const PAGES: [&dyn Page; 1] = [
+const PAGES: [&dyn Page; 2] = [
     // Play with Friends, what the pause menu's Friends icon opens.
     &horizon_friends::game::PAGE,
+    // Join a Friend, what the title screen's Friends icon opens.
+    &horizon_friends::game::JOIN,
 ];
 
 /// Registers Horizon's in-game parts with the game. The executable calls it before it runs the
