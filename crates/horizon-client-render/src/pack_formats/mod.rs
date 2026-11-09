@@ -3,6 +3,8 @@
 //! crate until the platform's executable installs it: it uses only the crate's public API, so it
 //! moves to a platform crate unchanged, and nothing else in the crate names it.
 
+pub mod cit;
+mod cit_glint;
 mod colors;
 mod connected;
 mod ctm;
@@ -35,6 +37,10 @@ impl PackFormats for Formats {
 
     fn emissive_suffix(&self, root: &Path) -> Option<String> {
         Some(horizon_optifine::emissive::suffix(root))
+    }
+
+    fn item_textures(&self, root: &Path) -> Option<crate::cit::CitRules> {
+        Some(cit::load(root))
     }
 
     fn custom_sky(&self, root: &Path) -> Option<Arc<dyn crate::custom_sky::SkyLayers>> {

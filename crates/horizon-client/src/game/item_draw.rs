@@ -370,7 +370,7 @@ impl Game<'_> {
             let pack_keeps = renderer
                 .cit
                 .as_ref()
-                .is_none_or(|c| c.rules.global.use_glint);
+                .is_none_or(|c| c.rules.use_glint);
             if !glint.vanilla && (gui || !pack_keeps) {
                 for layer in &mut state.layers {
                     layer.foil = horizon_assets::item_model::FoilType::None;
