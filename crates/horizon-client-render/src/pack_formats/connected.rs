@@ -38,21 +38,26 @@ pub fn load(
     // A side's sprite, for rules that connect by tile: the first quad facing it.
     let catalog = &*models;
     let mut found = Vec::new();
-    let ctm = Ctm::load(root, registry, sprites, |state: BlockStateId, face: Face| {
-        let side = horizon_assets::model::Direction::ALL[face as usize];
-        catalog
-            .models_at(
-                state,
-                horizon_core::position::BlockPos::new(0, 0, 0),
-                &mut found,
-            )
-            .ok()?;
-        found
-            .iter()
-            .flat_map(|m| &m.faces)
-            .find(|f| f.quad.facing == side)
-            .map(|f| f.layer)
-    });
+    let ctm = Ctm::load(
+        root,
+        registry,
+        sprites,
+        |state: BlockStateId, face: Face| {
+            let side = horizon_assets::model::Direction::ALL[face as usize];
+            catalog
+                .models_at(
+                    state,
+                    horizon_core::position::BlockPos::new(0, 0, 0),
+                    &mut found,
+                )
+                .ok()?;
+            found
+                .iter()
+                .flat_map(|m| &m.faces)
+                .find(|f| f.quad.facing == side)
+                .map(|f| f.layer)
+        },
+    );
     let rules = Rules { ctm, fusion };
     (!rules.is_empty()).then(|| Connected {
         rules: Arc::new(rules),
