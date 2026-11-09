@@ -58,7 +58,7 @@ pub(super) const ATTRIBUTES: [wgpu::VertexAttribute; 2] =
     wgpu::vertex_attr_array![0 => Float32x3, 1 => Uint32];
 
 /// What `gbuffers_skybasic` reads from these vertices.
-pub fn inputs() -> horizon_shaders::GbuffersInputs {
+pub fn inputs() -> horizon_render_pipeline::GbuffersInputs {
     let declarations =
         "layout(location = 0) in vec3 hz_v_pos;\nlayout(location = 1) in uint hz_v_kind;\n\
          layout(set = 1, binding = 0) uniform HzSky { mat4 hz_sky_stars; vec4 hz_sky_color; \
@@ -90,7 +90,7 @@ pub fn inputs() -> horizon_shaders::GbuffersInputs {
          hz_MultiTexCoord2 = hz_MultiTexCoord1;\n    \
          hz_Normal = vec3(0.0, 0.0, 1.0);\n"
     );
-    horizon_shaders::GbuffersInputs {
+    horizon_render_pipeline::GbuffersInputs {
         declarations,
         body,
         attributes: vec![
@@ -111,8 +111,8 @@ pub fn inputs() -> horizon_shaders::GbuffersInputs {
 }
 
 /// What `gbuffers_skytextured` reads from the sun and moon's vertices.
-pub fn celestial_inputs() -> horizon_shaders::GbuffersInputs {
-    horizon_shaders::GbuffersInputs {
+pub fn celestial_inputs() -> horizon_render_pipeline::GbuffersInputs {
+    horizon_render_pipeline::GbuffersInputs {
         declarations:
             "layout(location = 0) in vec3 hz_v_pos;\nlayout(location = 1) in vec2 hz_v_uv;\n\
              layout(location = 2) in vec4 hz_v_color;\n"

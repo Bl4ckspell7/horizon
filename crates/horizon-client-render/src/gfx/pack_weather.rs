@@ -11,7 +11,7 @@ use super::pack_post::Weather;
 /// What `gbuffers_weather` reads from a weather vertex: camera-relative position, the UV in
 /// repeats of the sprite, colour (with vanilla's fade) and light. Weather has no normal; the
 /// pack sees straight up.
-pub fn inputs() -> horizon_shaders::GbuffersInputs {
+pub fn inputs() -> horizon_render_pipeline::GbuffersInputs {
     let declarations =
         "layout(location = 0) in vec3 hz_v_pos;\nlayout(location = 1) in vec2 hz_v_uv;\n\
          layout(location = 2) in uint hz_v_overlay;\nlayout(location = 3) in vec4 hz_v_color;\n\
@@ -31,7 +31,7 @@ pub fn inputs() -> horizon_shaders::GbuffersInputs {
         ("vaColor", "hz_Color"),
         ("vaNormal", "hz_Normal"),
     ];
-    horizon_shaders::GbuffersInputs {
+    horizon_render_pipeline::GbuffersInputs {
         declarations,
         body,
         attributes: attributes
@@ -40,7 +40,7 @@ pub fn inputs() -> horizon_shaders::GbuffersInputs {
             .collect(),
         after: String::new(),
         // Vanilla's weather drops texels below 0.1, as Horizon's own weather shader does.
-        alpha_test: Some(horizon_shaders::AlphaTest {
+        alpha_test: Some(horizon_render_pipeline::AlphaTest {
             op: ">",
             reference: 0.1,
         }),

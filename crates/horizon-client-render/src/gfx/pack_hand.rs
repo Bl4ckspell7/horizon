@@ -17,7 +17,7 @@ const UNIFORM: u64 = 2 * 64;
 const SLOT: u64 = 32;
 
 /// What `gbuffers_hand` reads: the entity inputs, and the hand's projection from set 1.
-pub fn inputs() -> horizon_shaders::GbuffersInputs {
+pub fn inputs() -> horizon_render_pipeline::GbuffersInputs {
     let mut inputs = super::pack_entities::inputs();
     // No last frame's hand to measure from: the hand's `at_velocity` reads zero (and its set 1
     // has no previous vertices).

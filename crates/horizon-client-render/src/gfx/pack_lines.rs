@@ -8,7 +8,7 @@
 /// width in pixels. The strip's corners 0 and 1 are at the start, 2 and 3 at the end (six
 /// vertices per edge: pack pipelines draw triangle lists); the
 /// width is applied in screen space after the pack's transform.
-pub fn inputs() -> horizon_shaders::GbuffersInputs {
+pub fn inputs() -> horizon_render_pipeline::GbuffersInputs {
     let declarations =
         "layout(location = 0) in vec3 hz_l_start;\nlayout(location = 1) in vec3 hz_l_end;\n\
          layout(location = 2) in vec4 hz_l_argb;\nlayout(location = 3) in float hz_l_width;\n\
@@ -41,7 +41,7 @@ pub fn inputs() -> horizon_shaders::GbuffersInputs {
          if ((hz_l_c & 1) != 0) hz_l_o = -hz_l_o;\n        \
          gl_Position.xy += hz_l_o * gl_Position.w;\n    }\n"
         .to_owned();
-    horizon_shaders::GbuffersInputs {
+    horizon_render_pipeline::GbuffersInputs {
         declarations,
         body,
         attributes: attributes

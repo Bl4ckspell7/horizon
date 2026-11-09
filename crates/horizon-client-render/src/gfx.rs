@@ -7714,7 +7714,7 @@ impl Renderer {
                 inputs.declarations.push_str(
                     "layout(set = 5, binding = 0) readonly buffer HzIndices { uint hz_indices[]; };\n",
                 );
-                horizon_shaders::GeometryInputs {
+                horizon_render_pipeline::GeometryInputs {
                     inputs,
                     pull: pack_atlas::PULL.to_owned(),
                     index: "hz_indices[@]".to_owned(),
@@ -7737,7 +7737,7 @@ impl Renderer {
         }
     }
 
-    fn pack_terrain_inputs(&mut self) -> Option<horizon_shaders::GbuffersInputs> {
+    fn pack_terrain_inputs(&mut self) -> Option<horizon_render_pipeline::GbuffersInputs> {
         // Flat draws whenever the device has them (`render` keeps them on with a pack).
         let flat = self.flat.is_some() && self.flat_on;
         // Flat draws read each sprite's place from a table: the atlas is stitched as the game's.

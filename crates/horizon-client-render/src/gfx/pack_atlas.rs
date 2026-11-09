@@ -597,9 +597,9 @@ const FACE: &str = "    uint hz_q = (uint(gl_VertexIndex) & ~3u) * 6u;\n    \
 /// quad lands whole in one part. The colour's alpha can't decide it, as with `separateAo` it
 /// holds each vertex's own ambient occlusion.
 pub fn terrain_parts(
-    terrain: &horizon_shaders::GbuffersInputs,
+    terrain: &horizon_render_pipeline::GbuffersInputs,
     lava: &[u16],
-) -> [horizon_shaders::GbuffersInputs; 2] {
+) -> [horizon_render_pipeline::GbuffersInputs; 2] {
     let opaque = crate::mesher::OPAQUE_LAYER;
     let lava: String = lava
         .iter()
@@ -619,7 +619,7 @@ pub fn terrain_parts(
 impl PackAtlas {
     /// The vertex inputs of a gbuffers program drawing terrain (`TerrainVertex`, terrain.wgsl's
     /// `vs_terrain` or, for `flat` draws, `vs_terrain_flat`), in atlas coordinates.
-    pub fn terrain_inputs(&self, flat: bool) -> horizon_shaders::GbuffersInputs {
+    pub fn terrain_inputs(&self, flat: bool) -> horizon_render_pipeline::GbuffersInputs {
         let mut declarations = String::from(
             "layout(location = 0) in vec3 hz_v_pos;\nlayout(location = 1) in uvec2 hz_v_uv;\n\
              layout(location = 2) in uint hz_v_layer;\nlayout(location = 3) in vec4 hz_v_color;\n\
@@ -753,7 +753,7 @@ impl PackAtlas {
             ("vaColor", "hz_Color"),
             ("vaNormal", "hz_Normal"),
         ];
-        horizon_shaders::GbuffersInputs {
+        horizon_render_pipeline::GbuffersInputs {
             declarations,
             body,
             attributes: attributes

@@ -125,7 +125,7 @@ enum Source {
     ShadowDepth(usize, bool),
     /// `shadowcolor0/1` read outside the shadow programs (in them they are `Color`).
     ShadowColor(usize),
-    /// The boats' water patches' depth (`horizon_shaders::WATER_MASK`), for translucent terrain.
+    /// The boats' water patches' depth (`horizon_render_pipeline::WATER_MASK`), for translucent terrain.
     WaterMask,
 }
 
@@ -883,7 +883,7 @@ fn fits(ty: &str, sample_type: wgpu::TextureSampleType) -> bool {
 /// `hz_depth_linear` for a program: 1 for each of shadowtex0, shadowtex1, `shadow` and
 /// `watershadow` whose depth filters (`linear`, bit n: shadowtex n). `shadow` is shadowtex1 in a
 /// program that also declares `watershadow` (6.3).
-fn depth_linear(interface: &horizon_shaders::Interface, linear: u8) -> [f32; 4] {
+fn depth_linear(interface: &horizon_render_pipeline::Interface, linear: u8) -> [f32; 4] {
     let watershadow = interface.samplers.iter().any(|s| s.name == "watershadow");
     [0, 1, usize::from(watershadow), 0].map(|n| f32::from(linear >> n & 1))
 }
@@ -921,7 +921,7 @@ fn source(name: &str, shadow_space: bool, shadow_pass: bool, watershadow: bool) 
         "lightmap" => Source::Lightmap,
         "normals" => Source::Normals,
         "specular" => Source::Specular,
-        horizon_shaders::WATER_MASK => Source::WaterMask,
+        horizon_render_pipeline::WATER_MASK => Source::WaterMask,
         n => horizon_render_pipeline::buffer_index(n).map_or(Source::Dummy, Source::Color),
     }
 }
@@ -1503,7 +1503,7 @@ fn owned_buffers(
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
 fn bindings(
     features: wgpu::Features,
-    interface: &horizon_shaders::Interface,
+    interface: &horizon_render_pipeline::Interface,
     name: &str,
     group: Group,
     buffers: &[u32],
@@ -2283,7 +2283,7 @@ fn build_compute(
     device: &wgpu::Device,
     name: String,
     group: Group,
-    c: horizon_shaders::ComputeProgram,
+    c: horizon_render_pipeline::ComputeProgram,
     formats: &[wgpu::TextureFormat; BUFFERS],
     shadow: Option<&[wgpu::TextureFormat; SHADOW_COLORS]>,
     notes: &mut Vec<String>,

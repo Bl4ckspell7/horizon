@@ -2717,7 +2717,7 @@ pub(super) mod initial_history_tests {
 /// `horizonWaterPatch<k>`'s `k`: patch `k / 2`, its corner and y range (even) or edges (odd).
 fn water_patch_index(name: &str) -> Option<usize> {
     let k: usize = name.strip_prefix("horizonWaterPatch")?.parse().ok()?;
-    (k < 2 * horizon_shaders::WATER_PATCHES).then_some(k)
+    (k < 2 * horizon_render_pipeline::WATER_PATCHES).then_some(k)
 }
 
 /// The boats' water patches among the frame's entity quads (`WATER_MASK_OVERLAY`), the first
@@ -2729,7 +2729,7 @@ pub(super) fn water_patches(entities: &[super::Vertex]) -> Vec<[[f32; 4]; 2]> {
     let mut points: Vec<[f32; 3]> = Vec::new();
     let flush = |points: &mut Vec<[f32; 3]>, out: &mut Vec<[[f32; 4]; 2]>| {
         if let Some(b) = patch_box(points)
-            && out.len() < horizon_shaders::WATER_PATCHES
+            && out.len() < horizon_render_pipeline::WATER_PATCHES
         {
             out.push(b);
         }

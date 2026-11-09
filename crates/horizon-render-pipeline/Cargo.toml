@@ -9,6 +9,8 @@ description = "What an external shader pipeline gives the renderer: its buffers,
 [dependencies]
 # The frame uniform is uploaded as bytes (inputs.rs).
 bytemuck = { version = "1.24", features = ["derive"] }
+# A translated program's stages are naga modules (program.rs).
+naga = "30.0.1"
 
 [lints]
 workspace = true

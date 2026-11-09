@@ -17,17 +17,7 @@ use super::{Error, GbuffersInputs, Program, Target};
 use crate::Preprocessed;
 use crate::macros::lex;
 
-/// How a geometry program's vertex invocations reach their triangle's vertices.
-#[derive(Clone, Debug, Default)]
-pub struct GeometryInputs {
-    /// The game's vertex inputs, as `GbuffersInputs`; their `layout(location = n) in`
-    /// declarations become plain globals the pull sets.
-    pub inputs: GbuffersInputs,
-    /// GLSL statements that set the vertex inputs from vertex `hz_vertex_index` (a `uint`).
-    pub pull: String,
-    /// The vertex of the `@`th corner of the draw (a `uint` expression, `hz_indices[@]`).
-    pub index: String,
-}
+pub use horizon_render_pipeline::program::GeometryInputs;
 
 /// Translates `vertex`, `geometry` and `fragment` (a shadow program): the program, and how many
 /// triangles the geometry stage can emit (the instances to draw).

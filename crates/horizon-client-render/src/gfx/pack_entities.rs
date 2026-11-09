@@ -31,7 +31,7 @@ pub fn buffers() -> [Option<wgpu::VertexBufferLayout<'static>>; 1] {
 /// position, the shared atlas's UV, colour, light (block, sky in 16ths) and the world-oriented
 /// normal. The quad's corners, read from the same vertices at set 1, give the face normal where
 /// the vertex has none (custom geometry) and `at_tangent` along the texture's u, as for terrain.
-pub fn inputs() -> horizon_shaders::GbuffersInputs {
+pub fn inputs() -> horizon_render_pipeline::GbuffersInputs {
     let words = std::mem::size_of::<Vertex>() / 4;
     let mut declarations = "layout(location = 0) in vec3 hz_v_pos;\nlayout(location = 1) in vec2 hz_v_uv;\n\
          layout(location = 2) in uint hz_v_overlay;\nlayout(location = 3) in vec4 hz_v_color;\n\
@@ -112,7 +112,7 @@ pub fn inputs() -> horizon_shaders::GbuffersInputs {
         // bright.
         ("horizonTier", "float((hz_v_overlay >> 16u) & 255u)"),
     ];
-    horizon_shaders::GbuffersInputs {
+    horizon_render_pipeline::GbuffersInputs {
         declarations,
         body,
         attributes: attributes
@@ -121,7 +121,7 @@ pub fn inputs() -> horizon_shaders::GbuffersInputs {
             .collect(),
         after: String::new(),
         // Cutout, as vanilla's entity types mostly are (OQ-23): the loader's test at 0.1.
-        alpha_test: Some(horizon_shaders::AlphaTest {
+        alpha_test: Some(horizon_render_pipeline::AlphaTest {
             op: ">",
             reference: 0.1,
         }),
@@ -138,7 +138,7 @@ pub fn inputs() -> horizon_shaders::GbuffersInputs {
 /// inputs of [`inputs`], each vertex read from set 1 (`hz_entity_vertices`), as `Vertex` lays
 /// it out. The draw's corners walk its quads two triangles each, as `quad_indices` does: corner
 /// `c` of a draw from vertex `first` (a whole quad) is drawn as vertex `first / 4 * 6 + c`.
-pub fn geometry_inputs() -> horizon_shaders::GeometryInputs {
+pub fn geometry_inputs() -> horizon_render_pipeline::GeometryInputs {
     let words = std::mem::size_of::<Vertex>() / 4;
     let pull = format!(
         "        uint hz_pw = hz_vertex_index * {words}u;\n        \
@@ -150,7 +150,7 @@ pub fn geometry_inputs() -> horizon_shaders::GeometryInputs {
          hz_v_light = uvec4(hz_pl & 255u, (hz_pl >> 8u) & 255u, (hz_pl >> 16u) & 255u, hz_pl >> 24u);\n        \
          hz_v_normal = unpackSnorm4x8(hz_entity_vertices[hz_pw + 8u]);\n"
     );
-    horizon_shaders::GeometryInputs {
+    horizon_render_pipeline::GeometryInputs {
         inputs: inputs(),
         pull,
         // Quad `c / 6`, corner 0, 1, 2, 0, 2, 3 of it.
@@ -163,7 +163,7 @@ pub fn geometry_inputs() -> horizon_shaders::GeometryInputs {
 /// What `gbuffers_clouds` reads from the clouds' mesh (entity vertices, `vs_cloud`): the
 /// position moved by the clouds' offset, the colour of the face's shade from their palette,
 /// full light, the face's normal. Set 1 holds the clouds' uniform (`clouds::Uniform`).
-pub fn cloud_inputs() -> horizon_shaders::GbuffersInputs {
+pub fn cloud_inputs() -> horizon_render_pipeline::GbuffersInputs {
     let declarations = "layout(location = 0) in vec3 hz_v_pos;\nlayout(location = 1) in vec2 hz_v_uv;\n\
          layout(location = 2) in uint hz_v_overlay;\nlayout(location = 3) in vec4 hz_v_color;\n\
          layout(location = 4) in uvec4 hz_v_light;\nlayout(location = 5) in vec4 hz_v_normal;\n\
@@ -183,7 +183,7 @@ pub fn cloud_inputs() -> horizon_shaders::GbuffersInputs {
         ("vaColor", "hz_Color"),
         ("vaNormal", "hz_Normal"),
     ];
-    horizon_shaders::GbuffersInputs {
+    horizon_render_pipeline::GbuffersInputs {
         declarations,
         body,
         attributes: attributes
