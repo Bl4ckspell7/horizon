@@ -1,7 +1,4 @@
-//! Generates the native mod API, and gives the Windows executable Horizon's icon and its stack
-//! (`packaging/windows/exe.rs`, shared with the official executable's build script).
-#[path = "../../packaging/windows/exe.rs"]
-mod windows_exe;
+//! Generates the native mod API.
 
 fn main() {
     let root =
@@ -21,5 +18,4 @@ fn main() {
     if !staged.is_empty() {
         println!("cargo:rustc-env=HORIZON_MIXIN_MODS={}", staged.join(","));
     }
-    windows_exe::resources("horizon-client");
 }

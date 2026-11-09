@@ -1,4 +1,5 @@
-//! Horizon: native Rust client for Minecraft Java Edition 26.3 gameplay.
+//! This repository's plain executable: the platform's game with no Horizon part (docs/layers.md).
+//! The official executable is horizon-official's.
 #![forbid(unsafe_code)]
 
 #[cfg(not(any(feature = "system-allocator", feature = "alloc-census")))]
@@ -11,9 +12,9 @@ static ALLOCATOR: horizon_threads::CensusAllocator = horizon_threads::CensusAllo
 /// The mod API level this game serves, kept in the program for the launcher
 /// to read without running it (`horizon_mods::api_level::MARK`). `main`
 /// reads it, so the linker keeps it.
-static MOD_API_LEVEL: [u8; 27] = horizon_mods::api_level::MARK;
+static MOD_API_LEVEL: [u8; horizon_game::MOD_API_LEVEL.len()] = horizon_game::MOD_API_LEVEL;
 
 fn main() {
     std::hint::black_box(&MOD_API_LEVEL);
-    horizon_client::entry::main();
+    horizon_game::main();
 }
