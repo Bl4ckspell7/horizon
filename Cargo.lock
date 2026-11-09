@@ -1797,6 +1797,7 @@ dependencies = [
  "horizon-game",
  "horizon-heartbeat",
  "horizon-platform",
+ "horizon-telemetry",
  "log",
  "winresource",
 ]
@@ -1975,6 +1976,7 @@ dependencies = [
  "getrandom 0.3.4",
  "horizon-addresses",
  "horizon-platform",
+ "log",
  "ruzstd",
  "serde",
  "serde_json",
