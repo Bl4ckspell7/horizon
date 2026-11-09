@@ -82,6 +82,19 @@ pub trait PackFormats: Send + Sync {
         None
     }
 
+    /// The colormaps the overlay puts in place of vanilla's biome colour functions, given its
+    /// `modifiers` ([`Self::colormap_targets`]).
+    fn biome_colormaps(
+        &self,
+        _root: &Path,
+        _modifiers: &[crate::environment::ColormapTarget],
+    ) -> Vec<(
+        crate::environment::BiomeFunction,
+        Arc<dyn crate::environment::BlockColormap>,
+    )> {
+        Vec::new()
+    }
+
     /// The options the pack (its base, not its overlays) declares, at their defaults.
     fn pack_options(
         &self,
@@ -108,6 +121,11 @@ pub trait PackFormats: Send + Sync {
         _text: &[u8],
         _options: &horizon_pack_options::Configs,
     ) -> Option<Vec<u8>> {
+        None
+    }
+
+    /// The durability bar colours the overlay sets by item, if any.
+    fn item_bars(&self, _root: &Path) -> Option<Arc<dyn crate::pack_palette::ItemBars>> {
         None
     }
 }

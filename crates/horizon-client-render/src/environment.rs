@@ -132,9 +132,22 @@ pub trait BlockColormap: Send + Sync {
     /// Whether blocks take the mean of the colours around them, over the Biome Blend square.
     fn biome_blend(&self) -> bool;
 
+    /// Whether its colour stays the same up a column of one biome (it reads no height): a
+    /// section of one biome samples it once per column.
+    fn column(&self) -> bool;
+
     /// The colour at block `at`, in `biome`, ARGB; `None` where the pixel is transparent or
     /// an axis fails (the block keeps its own tint).
     fn sample(&self, at: [i32; 3], biome: &crate::biome::BiomeInfo) -> Option<u32>;
+}
+
+/// Vanilla's biome colour functions (`BiomeColors`), which the packs may replace.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum BiomeFunction {
+    Grass,
+    Foliage,
+    DryFoliage,
+    Water,
 }
 
 /// A block or fluid modifier with a colormap: the blocks it targets (by name) and the

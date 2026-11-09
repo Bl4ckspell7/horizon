@@ -3,7 +3,7 @@
 //! engine's environment extension points ([`crate::environment::EnvironmentModifiers`],
 //! [`crate::environment::BlockColormap`]).
 use crate::environment::{
-    BlockColormap, ColormapTarget, DimensionMaps, EnvironmentModifiers, Frame,
+    BiomeFunction, BlockColormap, ColormapTarget, DimensionMaps, EnvironmentModifiers, Frame,
 };
 use horizon_pack_options::Configs;
 use horizon_world::environment_attributes::{
@@ -262,6 +262,9 @@ pub struct Colormap {
     /// (`temperature`, `downfall`, `biome_id`) blend: Polytone 6.8.6's water by `biome_id`
     /// fades over a biome edge.
     pub(crate) biome_blend: bool,
+    /// Its axes read nothing that changes up a column of one biome (no `o.y`): a section of
+    /// one biome can sample it once per column.
+    pub(crate) column: bool,
     width: u32,
     height: u32,
     rgba: Vec<u8>,
@@ -280,6 +283,18 @@ enum Axis {
 }
 
 impl Axis {
+    /// Whether the axis reads only what stays the same up a column of one biome.
+    fn column(&self) -> bool {
+        use horizon_polytone::expr::Root;
+        let flat = |root: Root, name: &str| match root {
+            Root::Object => matches!(name, "x" | "z" | "biome" | "temperature" | "downfall"),
+            Root::Random => name == "noise",
+            _ => false,
+        };
+        match self {
+            Self::Expr(program) | Self::BiomeId(_, program) => program.reads_only(&flat),
+        }
+    }
     fn value(&self, host: &mut dyn horizon_polytone::expr::Host) -> Option<f64> {
         match self {
             Self::Expr(program) => Some(program.eval(host).ok()?.num()),
@@ -330,6 +345,23 @@ fn biome_id_mapper(pack_root: &Path, json: &Json) -> HashMap<String, f64> {
 }
 
 impl Colormap {
+    /// One colour wherever it samples (a `biome_colors` flat colour, RGB).
+    pub fn flat(rgb: u32) -> Self {
+        let zero = || Axis::Expr(horizon_polytone::expr::Program::compile("0").expect("a number"));
+        let [_, r, g, b] = rgb.to_be_bytes();
+        Self {
+            x: zero(),
+            y: zero(),
+            triangular: false,
+            rounds: true,
+            biome_blend: false,
+            column: true,
+            width: 1,
+            height: 1,
+            rgba: vec![r, g, b, 255],
+        }
+    }
+
     /// `assets/<namespace>/polytone/colormaps/<path>.png` and its optional `.json` (without
     /// one, the axes are the biome's temperature and downfall).
     pub fn load(pack_root: &Path, id: &str) -> Option<Self> {
@@ -381,9 +413,11 @@ impl Colormap {
             axis("x_axis", "o.temperature")?,
             axis("y_axis", "o.downfall")?,
         );
+        let column = [&x, &y].iter().all(|axis| axis.column());
         Some(Self {
             x,
             y,
+            column,
             biome_blend: json["biome_blend"].as_bool().unwrap_or(by_biome),
             triangular: json["triangular"].as_bool() == Some(true),
             rounds: json["rounds"].as_bool() != Some(false),
@@ -470,9 +504,49 @@ pub fn colormap_targets(pack_root: &Path) -> Vec<ColormapTarget> {
     out
 }
 
+/// What the packs put in place of vanilla's biome colour functions: `biome_colors` (a colormap
+/// or a flat colour), else the colormap a block modifier gives `grass_block`, `oak_leaves` or
+/// `leaf_litter`, or a fluid modifier gives water, which Polytone spreads to every block of that
+/// function.
+pub fn biome_colormaps(
+    pack_root: &Path,
+    modifiers: &[ColormapTarget],
+) -> Vec<(BiomeFunction, Arc<dyn BlockColormap>)> {
+    use horizon_polytone::colors::BiomeColor;
+    const FUNCTIONS: [(&str, &str, BiomeFunction); 4] = [
+        ("grass", "minecraft:grass_block", BiomeFunction::Grass),
+        ("foliage", "minecraft:oak_leaves", BiomeFunction::Foliage),
+        (
+            "dry_foliage",
+            "minecraft:leaf_litter",
+            BiomeFunction::DryFoliage,
+        ),
+        ("water", "minecraft:water", BiomeFunction::Water),
+    ];
+    let colors = horizon_polytone::colors::PackColors::read(pack_root);
+    FUNCTIONS
+        .into_iter()
+        .filter_map(|(name, block, function)| {
+            let colormap = match colors.biome_color(name) {
+                Some(BiomeColor::Flat(rgb)) => Some(Colormap::flat(rgb)),
+                Some(BiomeColor::Colormap(id)) => Colormap::load(pack_root, &id),
+                None => modifiers
+                    .iter()
+                    .find(|m| m.fluid == (name == "water") && (m.targets)(block))
+                    .and_then(|m| Colormap::load(pack_root, &m.colormap)),
+            }?;
+            Some((function, Arc::new(colormap) as Arc<dyn BlockColormap>))
+        })
+        .collect()
+}
+
 impl BlockColormap for Colormap {
     fn biome_blend(&self) -> bool {
         self.biome_blend
+    }
+
+    fn column(&self) -> bool {
+        self.column
     }
 
     fn sample(&self, at: [i32; 3], biome: &crate::biome::BiomeInfo) -> Option<u32> {
