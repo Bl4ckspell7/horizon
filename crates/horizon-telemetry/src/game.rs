@@ -510,7 +510,7 @@ mod tests {
     #[test]
     fn slow_frames_are_put_down_to_their_step() {
         // What the game's `spans::culprit` names for each frame.
-        let step = |path: &str, ms| move || Some((path.to_owned(), ms));
+        let step = |path: &'static str, ms: f32| move || Some((path.to_owned(), ms));
         let mut session = Session::default();
         (0..4000).for_each(|_| session.frame(16.6, step("tick", 10.0)));
         session.frame(320.0, step("renderer/r_uploads", 280.0));
