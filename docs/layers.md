@@ -292,7 +292,7 @@ world saved), and a multiplayer connection's lifecycle: `connecting` (address, p
 purpose) and `ended` (reason, its translation key, whether the server sent it). `ended` may return a `Reconnect`
 (address, name, LAN, when, attempt of attempts): the engine shows its countdown on the Disconnected screen, with
 Cancel, and connects when it is due; every hook hears the end and the first plan wins. Auto-reconnect is built on
-them (`reconnect.rs`); the engine keeps the last server itself (`last_server.rs`). **A hook you need and don't find:** add a method with an empty default to `Hooks` and a function in
+them (`horizon-reconnect`, with its setting and Extras row); the engine keeps the last server itself (`last_server.rs`). **A hook you need and don't find:** add a method with an empty default to `Hooks` and a function in
 `horizon_hooks::engine` that the engine calls where vanilla does the matching thing; give it plain data or a type
 the engine owns, never one from above. A hook that needs engine types the platform doesn't expose yet (a draw
 context for HUD and chat overlays, a settings page) comes with that type's platform API (M6). An extension point
