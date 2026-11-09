@@ -1,7 +1,7 @@
 //! The movement record's upkeep on the server's hub (docs/anticheat.md): while the anticheat's
 //! prediction runs, each guest's client ticks (its moves, and its pongs to the ping that ends each server
 //! tick) go into its record (`lan::prediction::record`), which the engine's movement replay plays again.
-use super::Hub;
+use super::hub::Hub;
 use horizon_anticheat::Check;
 
 impl Hub {

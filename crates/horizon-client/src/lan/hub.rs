@@ -41,7 +41,6 @@ use std::sync::{Arc, Mutex, atomic::Ordering};
 /// GameEvent types (ClientboundGameEventPacket).
 pub mod chat;
 pub mod chat_filter;
-mod recording;
 
 pub mod game_event {
     pub const NO_RESPAWN_BLOCK_AVAILABLE: u8 = 0;
