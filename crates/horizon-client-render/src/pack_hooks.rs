@@ -88,6 +88,11 @@ pub trait PackFormats: Send + Sync {
     ) -> Option<Vec<u8>> {
         None
     }
+
+    /// The durability bar colours the overlay sets by item, if any.
+    fn item_bars(&self, _root: &Path) -> Option<Arc<dyn crate::pack_palette::ItemBars>> {
+        None
+    }
 }
 
 /// Every block entity model, reshaped by a pack or vanilla's, and the atlas names of the

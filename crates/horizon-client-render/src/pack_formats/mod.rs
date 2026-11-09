@@ -12,6 +12,7 @@ mod ctm;
 mod custom_sky;
 mod entity_textures;
 mod fusion;
+mod item_bars;
 mod pack_options;
 
 use std::path::Path;
@@ -82,6 +83,10 @@ impl PackFormats for Formats {
         options: &horizon_pack_options::Configs,
     ) -> Option<Vec<u8>> {
         horizon_polytone::pack::sounds_without_unmet(text, options)
+    }
+
+    fn item_bars(&self, root: &Path) -> Option<Arc<dyn crate::pack_palette::ItemBars>> {
+        item_bars::read(root)
     }
 }
 
