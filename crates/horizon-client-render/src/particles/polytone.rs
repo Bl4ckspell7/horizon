@@ -1258,7 +1258,7 @@ pub(super) fn make(
         particle.sprite = Sprite::Named(model.quads[0].sprite.clone());
         particle.model = Some(model);
     }
-    particle.orientation = super::polytone_gpu::Orientation::parse(&def.rotation_mode);
+    particle.orientation = crate::pack_formats::particles_gpu::orientation(&def.rotation_mode);
     particle.additive = def.render_type == RenderType::AdditiveTranslucent;
     // `light_level`: the block light the particle gives itself (wiki "Custom Particle Types"),
     // a floor under the light where it is, as GPU particles have.
@@ -1315,6 +1315,15 @@ pub(super) fn make(
         tinting: Tinting::default(),
     }));
     Some(particle)
+}
+
+/// The store for GPU particle type `name`'s records.
+pub(super) fn gpu_store(
+    name: &str,
+    def: &Arc<CustomParticle>,
+) -> Option<Box<dyn super::custom::GpuParticles>> {
+    let store = crate::pack_formats::particles_gpu::Store::new(name, def)?;
+    Some(Box::new(store))
 }
 
 /// A particle modifier's `filter`: the blocks and items (an id or a list each) whose particles

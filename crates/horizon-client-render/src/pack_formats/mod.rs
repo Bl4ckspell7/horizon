@@ -15,6 +15,7 @@ mod entity_textures;
 pub mod environment;
 mod fusion;
 mod pack_options;
+pub(crate) mod particles_gpu;
 mod post;
 mod sprite_modifiers;
 

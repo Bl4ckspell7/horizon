@@ -27,9 +27,9 @@ use std::{
 
 pub use horizon_client_core::particle_type::ParticleType;
 pub use horizon_items::firework::{DYE_FIREWORK_COLORS, FireworkExplosion, FireworkShape};
+pub mod custom;
 mod native;
 pub mod polytone;
-mod polytone_gpu;
 mod polytone_model;
 pub use native::{ParticleController, ParticleUpdate};
 
@@ -508,7 +508,7 @@ pub struct Particle {
     /// `quadSize`.
     pub size: f32,
     pub rgba: [f32; 4],
-    roll: f32,
+    pub roll: f32,
     o_roll: f32,
     sprite: Sprite,
     /// Age-driven sprite set (`setSpriteFromAge`).
@@ -531,7 +531,7 @@ pub struct Particle {
     /// A Polytone model particle's faces, drawn instead of its sprite quad.
     model: Option<std::sync::Arc<polytone_model::ParticleModel>>,
     /// How a Polytone custom particle's quad turns (`rotation_mode`).
-    orientation: polytone_gpu::Orientation,
+    orientation: custom::Orientation,
     /// Blended additively (a Polytone `additive_translucent` particle).
     additive: bool,
 }
@@ -897,7 +897,7 @@ impl Particle {
             controller: None,
             polytone_type: None,
             model: None,
-            orientation: polytone_gpu::Orientation::Camera,
+            orientation: custom::Orientation::Camera,
             additive: false,
         }
     }
@@ -1324,7 +1324,7 @@ pub struct ParticleEngine {
     /// (`assets/minecraft/polytone/custom_particles/rain.json` is `minecraft:rain`).
     polytone_overrides: HashMap<ParticleType, String>,
     /// The packs' GPU particles' records, one store per type, and the ticks they count in.
-    polytone_gpu: Vec<polytone_gpu::Store>,
+    polytone_gpu: Vec<Box<dyn custom::GpuParticles>>,
     polytone_ticks: u64,
     /// The last frame's additively blended quads (`take_additive`).
     additive: std::sync::Mutex<Vec<Vertex>>,
@@ -1358,7 +1358,7 @@ struct CachedParticleLight {
     packed: u8,
 }
 
-struct ParticleLightCache {
+pub struct ParticleLightCache {
     entries: [Option<CachedParticleLight>; PARTICLE_LIGHT_CACHE_SIZE],
 }
 
@@ -1371,7 +1371,7 @@ impl Default for ParticleLightCache {
 }
 
 impl ParticleLightCache {
-    fn get(&mut self, block: [i32; 3], light_at: &dyn Fn([i32; 3]) -> u8) -> u8 {
+    pub fn get(&mut self, block: [i32; 3], light_at: &dyn Fn([i32; 3]) -> u8) -> u8 {
         let hash = (block[0] as u32).wrapping_mul(73_856_093)
             ^ (block[1] as u32).wrapping_mul(19_349_663)
             ^ (block[2] as u32).wrapping_mul(83_492_791);
@@ -1774,7 +1774,7 @@ impl ParticleEngine {
     }
     /// Live GPU particle records (spawns, before `area` spreads them), for tests and status.
     pub fn polytone_gpu_records(&self) -> usize {
-        self.polytone_gpu.iter().map(polytone_gpu::Store::len).sum()
+        self.polytone_gpu.iter().map(|s| s.records()).sum()
     }
     /// Choose a frame from this particle's declared sprite set.
     pub fn set_sprite_frame(&self, particle: &mut Particle, frame: usize) {
@@ -2227,10 +2227,10 @@ impl ParticleEngine {
             if def.gpu.is_some() {
                 // A GPU particle is only a record: it never becomes an engine particle.
                 let now = self.polytone_ticks;
-                let store = match self.polytone_gpu.iter().position(|s| s.is(&def)) {
+                let store = match self.polytone_gpu.iter().position(|s| s.is(&name)) {
                     Some(i) => &mut self.polytone_gpu[i],
                     None => {
-                        self.polytone_gpu.push(polytone_gpu::Store::new(&def)?);
+                        self.polytone_gpu.push(polytone::gpu_store(&name, &def)?);
                         self.polytone_gpu.last_mut()?
                     }
                 };
@@ -4970,7 +4970,7 @@ impl ParticleEngine {
                 ) - camera;
                 (pos.as_vec3(), p.quad_size(partial))
             });
-            let rotation = if p.orientation != polytone_gpu::Orientation::Camera {
+            let rotation = if p.orientation != custom::Orientation::Camera {
                 // A custom particle's `movement_aligned` quad has its texture's top against
                 // its motion (measured in Java: a light ray rising toward the noon sun hangs
                 // below the leaves it starts at); a GPU particle's has it along its motion.
@@ -4980,7 +4980,7 @@ impl ParticleEngine {
                     p.velocity[2] as f32,
                 );
                 let roll = p.o_roll + (p.roll - p.o_roll) * partial;
-                polytone_gpu::orient(p.orientation, center, velocity, roll, base)
+                custom::orient(p.orientation, center, velocity, roll, base)
             } else if p.roll != 0.0 {
                 base * Quat::from_rotation_z(p.o_roll + (p.roll - p.o_roll) * partial)
             } else {
