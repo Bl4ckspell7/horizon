@@ -111,6 +111,11 @@ pub trait PackFormats: Send + Sync {
         None
     }
 
+    /// The creative tab modifiers of the packs merged at `root`, in load order.
+    fn creative_tab_modifiers(&self, _root: &Path) -> Vec<Box<dyn TabModifier>> {
+        Vec::new()
+    }
+
     /// The options the pack (its base, not its overlays) declares, at their defaults.
     fn pack_options(
         &self,
@@ -147,6 +152,22 @@ pub type Reshaped = (
     std::collections::HashMap<&'static str, crate::block_entity_render::ModelPart>,
     std::collections::HashMap<&'static str, String>,
 );
+
+/// A pack's change to creative tabs: items removed and added, another icon or name.
+pub trait TabModifier: Send + Sync {
+    /// Whether it changes the tab `id` (`minecraft:building_blocks`).
+    fn aims_at(&self, tab: &str) -> bool;
+
+    /// The tab's item ids after its removals and additions. `in_tag(item, tag)`: whether an
+    /// item is in an item tag.
+    fn apply(&self, items: &mut Vec<String>, in_tag: &dyn Fn(&str, &str) -> bool);
+
+    /// The tab's new icon, an item id.
+    fn icon(&self) -> Option<&str>;
+
+    /// The tab's new name, a text component.
+    fn name(&self) -> Option<&serde_json::Value>;
+}
 
 /// No format beyond vanilla's.
 struct Vanilla;
