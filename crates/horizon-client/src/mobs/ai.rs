@@ -1374,8 +1374,8 @@ fn base_tick(m: &mut Mob, w: &MobWorld, events: &mut Vec<MobEvent>) -> bool {
             touches_lava(m, w),
         )
     };
-    let lava =
-        lava || crate::entities::lava_cauldron_contacts(w.world, w.registry, m.bounds()) > 0;
+    // LavaCauldronBlock.entityInside: LAVA_IGNITE and lavaHurt, as in lava.
+    let lava = lava || crate::entities::lava_cauldron_contacts(w.world, w.registry, m.bounds()) > 0;
     block_contact_damage(m, fire, lava, w, events);
     // What a hurt outside the mob's own tick left (a scripted or a mob's
     // hit) teleports before the rest of the tick, as it did inside it.
