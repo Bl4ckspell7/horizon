@@ -58,6 +58,18 @@ impl Session {
     }
 }
 
+/// Tells the hooks the screen `window` is on ([`crate::window::display`]).
+pub fn note_display(window: &winit::window::Window) {
+    if let Some(d) = crate::window::display(window) {
+        engine::display(&horizon_hooks::Display {
+            width: d.width,
+            height: d.height,
+            refresh_hz: d.refresh_hz,
+            scale: d.scale,
+        });
+    }
+}
+
 /// The resources the menus need are loaded.
 pub fn core_ready() {
     engine::startup(Milestone::CoreReady, startup::since_start());
