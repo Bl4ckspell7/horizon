@@ -11,11 +11,13 @@
 use horizon_platform::hooks::{self, Hooks};
 
 /// Every Horizon part in the game, in the order its hooks run.
-const PARTS: [&dyn Hooks; 2] = [
+const PARTS: [&dyn Hooks; 3] = [
     // The anonymous "I'm playing" ping.
     &horizon_heartbeat::HOOKS,
     // Play with Friends: `friend:` addresses join through its tunnel.
     &horizon_friends::game::HOOKS,
+    // Opt-in telemetry: the play session's summary and crash reports, kept for the launcher.
+    &horizon_telemetry::game::HOOKS,
 ];
 
 /// Registers Horizon's in-game parts with the game. The executable calls it before it runs the
