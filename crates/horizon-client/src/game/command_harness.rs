@@ -458,7 +458,7 @@ impl Game<'_> {
                         loop {
                             g.update_world();
                             g.spawn_loaded_entities();
-                            // A chunk whose ticket level ticks entities waits for its
+                            // A chunk in the simulation entity-ticking range waits for its
                             // 5x5 to load as well (`ChunkMap.prepareEntityTickingChunk`),
                             // as the oracle's does (`isPositionEntityTicking`); its
                             // ticks refresh the levels.
@@ -473,7 +473,7 @@ impl Game<'_> {
                                         .loaded_entities
                                         .iter()
                                         .any(|(key, _)| *key == (x, z))
-                                    && (!levels.entity_ticking_at(x << 4, z << 4)
+                                    && (!levels.in_entity_ticking_range(x, z)
                                         || ticking(x << 4, z << 4))
                             }) {
                                 // The oracle waits for `areEntitiesLoaded` too.
