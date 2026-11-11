@@ -6,7 +6,12 @@ use horizon_world::{
     worldgen::{tags::TagDefinitions, terrain::TerrainBlockStates},
 };
 use serde_json::Value;
-use std::{collections::BTreeSet, io, path::Path, sync::Arc};
+use std::{
+    collections::BTreeSet,
+    io,
+    path::Path,
+    sync::{Arc, Mutex},
+};
 
 pub const MATERIALS: [&str; 6] = ["bedrock", "dirt", "stone", "sand", "oak_planks", "bricks"];
 #[derive(Clone, Copy)]
@@ -180,6 +185,23 @@ static GENERATION: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::
 fn invalid(message: &str) -> io::Error {
     io::Error::new(io::ErrorKind::InvalidData, message)
 }
+/// Every block registry [`Assets::load`] has handed out, one per distinct
+/// content. Callers keep `&'static` references, so a registry is never freed;
+/// loading equal data again (tests load the same root once per fixture)
+/// returns the one already leaked instead of leaking another (about 11 MB for
+/// vanilla).
+static REGISTRIES: Mutex<Vec<&'static BlockRegistry>> = Mutex::new(Vec::new());
+
+/// `registry` leaked, or the equal one leaked before it.
+fn intern_registry(registry: BlockRegistry) -> &'static BlockRegistry {
+    let mut leaked = REGISTRIES.lock().unwrap_or_else(|e| e.into_inner());
+    if let Some(&same) = leaked.iter().find(|&&known| *known == registry) {
+        return same;
+    }
+    let registry: &'static BlockRegistry = Box::leak(Box::new(registry));
+    leaked.push(registry);
+    registry
+}
 impl Assets {
     pub fn load(root: &Path) -> Result<Self> {
         let manifest: Value = horizon_world::json_file::read(&root.join("horizon-resources.json"))?;
@@ -254,7 +276,7 @@ impl Assets {
         // Chunks hold every state of this registry: content mods can take it
         // past vanilla's 16-bit global palette.
         crate::chunk::set_block_states(registry.len());
-        let registry: &'static BlockRegistry = Box::leak(Box::new(registry));
+        let registry = intern_registry(registry);
         Ok(Self {
             registry,
             properties,
@@ -318,6 +340,13 @@ impl RenderAssets {
             }
             None => crate::model_library::ParsedModels::default(),
         };
+        // Connected-texture rules find their faces by sprite layer: what they match by name keeps a
+        // layer of its own, decided before the models insert their textures.
+        let connected_rules = if draws {
+            crate::pack_hooks::formats().prepare_connected_textures(root, &mut sprites)
+        } else {
+            None
+        };
         let mut models = if draws {
             let _step = crate::spans::startup::step("core.models_bake");
             crate::models::prepare_with_models(root, registry, &mut sprites, &parsed)?
@@ -355,6 +384,7 @@ impl RenderAssets {
             };
             let connected = crate::pack_hooks::formats().connected_textures(
                 root,
+                connected_rules,
                 registry,
                 &mut sprites,
                 &mut models.catalog,
@@ -478,6 +508,29 @@ mod tests {
             chicken.consumable.as_ref().unwrap().effects[..],
             [ConsumeEffect::ApplyEffects { probability, .. }] if probability == 0.3
         ));
+    }
+
+    #[test]
+    fn equal_registries_are_leaked_once() {
+        use horizon_world::registry::BlockRegistry;
+        let registry = |extra: &str| {
+            let facts = format!(
+                r#"{{"defaults":{{"minecraft:air":0,"fixture:{extra}":1}},"states":[
+                    ["air",true,false,"","minecraft:air"],
+                    ["{extra}",false,false,"","fixture:{extra}"]
+                ]}}"#
+            );
+            BlockRegistry::from_facts_json(facts.as_bytes()).unwrap()
+        };
+        let first = super::intern_registry(registry("interned_once"));
+        let again = super::intern_registry(registry("interned_once"));
+        let other = super::intern_registry(registry("interned_other"));
+        assert!(std::ptr::eq(first, again), "equal content leaked twice");
+        assert!(!std::ptr::eq(first, other), "different content shared");
+        assert_eq!(
+            other.default_state("fixture:interned_other"),
+            Some(horizon_world::registry::BlockStateId(1))
+        );
     }
 
     #[test]

@@ -25,6 +25,7 @@ pub struct Rules {
 /// OptiFine's rules' tiles go into `sprites`, in that order. `None` without either format's files.
 pub fn load(
     root: &Path,
+    rules: Vec<horizon_optifine::ctm::Rule>,
     registry: &BlockRegistry,
     sprites: &mut Sprites,
     models: &mut StateModels,
@@ -40,6 +41,7 @@ pub fn load(
     let mut found = Vec::new();
     let ctm = Ctm::load(
         root,
+        rules,
         registry,
         sprites,
         |state: BlockStateId, face: Face| {
