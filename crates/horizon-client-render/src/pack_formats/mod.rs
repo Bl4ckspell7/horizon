@@ -8,6 +8,7 @@ pub mod cit;
 mod cit_glint;
 mod colors;
 mod connected;
+mod creative_tabs;
 mod ctm;
 mod custom_sky;
 mod entity_textures;
@@ -113,6 +114,10 @@ impl PackFormats for Formats {
         keys: &mut dyn Iterator<Item = &String>,
     ) -> Option<crate::hud::sprite_modifiers::SpriteModifiers> {
         Some(sprite_modifiers::read(root, keys))
+    }
+
+    fn creative_tab_modifiers(&self, root: &Path) -> Vec<Box<dyn crate::pack_hooks::TabModifier>> {
+        creative_tabs::read(root)
     }
 
     fn biome_colormaps(
