@@ -10,6 +10,7 @@
 
 use horizon_platform::{
     hooks::{self, Hooks},
+    lang,
     pages::{self, Page},
 };
 
@@ -21,6 +22,9 @@ const PARTS: [&dyn Hooks; 2] = [
     // shared behind an invite code.
     &horizon_friends::game::HOOKS,
 ];
+
+/// The lang files with Horizon's parts' text (their `assets/lang`).
+const LANG: [&lang::Files; 1] = [horizon_friends::game::LANG];
 
 /// The pages Horizon's parts add to the game's menus.
 const PAGES: [&dyn Page; 1] = [
@@ -40,6 +44,11 @@ pub fn register() {
     for page in PAGES {
         if let Err(e) = pages::register(page) {
             log::warn!("Horizon: a page did not register: {e}");
+        }
+    }
+    for files in LANG {
+        if let Err(e) = lang::register(files) {
+            log::warn!("Horizon: a part's text did not register: {e}");
         }
     }
 }

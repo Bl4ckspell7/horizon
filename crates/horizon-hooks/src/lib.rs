@@ -14,10 +14,11 @@
 //!
 //! The platform registries (docs/layers.md, "Platform registries") have the same shape:
 //! [`settings`] for the settings each crate keeps in its own lines, [`pages`] for its settings
-//! pages, [`hud`] for what it draws on the HUD.
+//! pages, [`hud`] for what it draws on the HUD, [`lang`] for the lang files with its text.
 #![forbid(unsafe_code)]
 
 pub mod hud;
+pub mod lang;
 pub mod pages;
 mod registry;
 pub mod settings;
@@ -135,6 +136,7 @@ pub mod engine {
         crate::settings::all();
         crate::pages::engine::all();
         crate::hud::engine::all();
+        crate::lang::all();
     }
 
     /// Where [`crate::tr`] reads translations from; the first call wins.
