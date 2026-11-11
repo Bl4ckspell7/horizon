@@ -1401,7 +1401,9 @@ dependencies = [
 name = "horizon-bench"
 version = "0.1.0"
 dependencies = [
+ "horizon-platform",
  "horizon-telemetry",
+ "log",
  "serde",
  "serde_json",
 ]
@@ -1439,7 +1441,6 @@ dependencies = [
  "glam",
  "horizon-anticheat",
  "horizon-assets",
- "horizon-bench",
  "horizon-chat-filter",
  "horizon-client-core",
  "horizon-client-input",
@@ -1461,6 +1462,7 @@ dependencies = [
  "horizon-server-files",
  "horizon-shader-api",
  "horizon-shaders",
+ "horizon-system",
  "horizon-telemetry",
  "horizon-theme",
  "horizon-threads",
@@ -1522,7 +1524,6 @@ dependencies = [
  "glam",
  "horizon-anticheat",
  "horizon-assets",
- "horizon-bench",
  "horizon-chat-filter",
  "horizon-client-core",
  "horizon-client-input",
@@ -1793,10 +1794,12 @@ dependencies = [
 name = "horizon-official"
 version = "0.1.0"
 dependencies = [
+ "horizon-bench",
  "horizon-friends",
  "horizon-game",
  "horizon-heartbeat",
  "horizon-platform",
+ "horizon-telemetry",
  "log",
  "winresource",
 ]
@@ -1805,8 +1808,8 @@ dependencies = [
 name = "horizon-optifine"
 version = "0.1.0"
 dependencies = [
- "horizon-bench",
  "horizon-core",
+ "horizon-system",
  "log",
  "regex",
 ]
@@ -1970,6 +1973,7 @@ dependencies = [
  "getrandom 0.3.4",
  "horizon-addresses",
  "horizon-platform",
+ "log",
  "ruzstd",
  "serde",
  "serde_json",
