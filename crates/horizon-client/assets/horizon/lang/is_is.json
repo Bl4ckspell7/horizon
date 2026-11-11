@@ -336,7 +336,6 @@
   "Which chunk rebuilds wait for the frame: none, nearby or yours.": "Hvaða klumpur endurbyggir bíða eftir rammanum: enginn, nálægt eða þinn.",
   "Animates water, lava, fire and other moving textures.": "Hreyfir vatn, hraun, eld og önnur áhrifamikil áferð.",
   "World pixels per screen pixel. Below 100% is faster on the GPU.": "Heimspixlar á hvern skjápixla. Undir 100% er hraðari á GPU.",
-  "Smooths jagged edges. FXAA: softer. TAA: smoothest, moving things may trail.": "Sléttir oddhvassar brúnir. FXAA: mýkri. TAA: sléttustu hlutir sem hreyfast geta verið slóðir.",
   "Renders the world smaller and rebuilds it with TAA. Faster, softer.": "Gerir heiminn minni og endurbyggir hann með TAA. Hraðari, mýkri.",
   "Sharpens the upscaled picture. Higher: crisper edges, more shimmer.": "Skerpir stækkuðu myndina. Hærra: skarpari brúnir, meira glit.",
   "HDR output on an HDR display: lava, fire and sunlight shine brighter.": "HDR úttak á HDR skjá: hraun, eldur og sólarljós skína skærar.",

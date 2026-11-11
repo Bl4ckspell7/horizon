@@ -336,7 +336,6 @@
   "Which chunk rebuilds wait for the frame: none, nearby or yours.": "Cila pjesë e rindërtuar pret kornizën: asnjë, afër ose e juaja.",
   "Animates water, lava, fire and other moving textures.": "Gjallëzon ujin, lavën, zjarrin dhe tekstura të tjera lëvizëse.",
   "World pixels per screen pixel. Below 100% is faster on the GPU.": "Piksele botërore për piksel të ekranit. Nën 100% është më i shpejtë në GPU.",
-  "Smooths jagged edges. FXAA: softer. TAA: smoothest, moving things may trail.": "Zbut skajet e dhëmbëzuara. FXAA: më i butë. TAA: gjërat më të buta dhe lëvizëse mund të zvarriten.",
   "Renders the world smaller and rebuilds it with TAA. Faster, softer.": "E bën botën më të vogël dhe e rindërton atë me TAA. Më e shpejtë, më e butë.",
   "Sharpens the upscaled picture. Higher: crisper edges, more shimmer.": "Mprehtëson pamjen e rritur. Më e lartë: skaje më të qarta, më shumë shkëlqim.",
   "HDR output on an HDR display: lava, fire and sunlight shine brighter.": "Dalja HDR në një ekran HDR: lava, zjarri dhe rrezet e diellit shkëlqejnë më shumë.",

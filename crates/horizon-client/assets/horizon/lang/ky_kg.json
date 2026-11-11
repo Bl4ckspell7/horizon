@@ -336,7 +336,6 @@
   "Which chunk rebuilds wait for the frame: none, nearby or yours.": "Кайсы бөлүктөр кадрды күтөт: жок, жакын же сеники.",
   "Animates water, lava, fire and other moving textures.": "Сууну, лаваны, отту жана башка кыймылдуу текстураларды жандандырат.",
   "World pixels per screen pixel. Below 100% is faster on the GPU.": "Экран пикселине дүйнөлүк пикселдер. 100% төмөн GPU ылдамыраак.",
-  "Smooths jagged edges. FXAA: softer. TAA: smoothest, moving things may trail.": "Тиштелген четтерин тегиздейт. FXAA: жумшак. TAA: эң жылмакай, кыймылдуу нерселер артта калышы мүмкүн.",
   "Renders the world smaller and rebuilds it with TAA. Faster, softer.": "Дүйнөнү кичирейтип, TAA менен кайра курат. Тезирээк, жумшак.",
   "Sharpens the upscaled picture. Higher: crisper edges, more shimmer.": "Масштабдалган сүрөттү курчутат. Жогору: кырлар ачык, бирок жалтылдоо көп.",
   "HDR output on an HDR display: lava, fire and sunlight shine brighter.": "HDR дисплейдеги HDR чыгарылышы: лава, от жана күн нуру жаркырайт.",
