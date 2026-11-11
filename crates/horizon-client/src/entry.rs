@@ -27,9 +27,6 @@ pub fn main_with(mods: crate::mod_api::Mods) {
     horizon_hooks::engine::set_language(|key| {
         horizon_client::lang::has(key).then(|| horizon_client::lang::get(key))
     });
-    // Play with Friends' host side, until it moves to horizon-friends (spec #14167).
-    #[cfg(feature = "friends")]
-    game::register_friends();
     // Crates above the engine registered their hooks before this (horizon-official's `main`);
     // none registers after this point.
     horizon_hooks::engine::seal();
