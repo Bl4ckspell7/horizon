@@ -178,14 +178,16 @@ impl PolytonePost {
             .insert("PolyGlobals".to_owned(), globals.bytes());
         for chain in &self.chains {
             let on = chain.activation.as_ref().is_none_or(|c| {
-                crate::environment::eval_frame(c, frame, &self.configs).is_some_and(|v| v.truthy())
+                crate::pack_formats::environment::eval_frame(c, frame, &self.configs)
+                    .is_some_and(|v| v.truthy())
             });
             if !on {
                 continue;
             }
             for (name, program) in &chain.uniforms {
-                let value = crate::environment::eval_frame(program, frame, &self.configs)
-                    .map_or(0.0, |v| v.num()) as f32;
+                let value =
+                    crate::pack_formats::environment::eval_frame(program, frame, &self.configs)
+                        .map_or(0.0, |v| v.num()) as f32;
                 let mut block = value.to_le_bytes().to_vec();
                 block.resize(16, 0);
                 extras.blocks.insert(name.clone(), block);

@@ -165,9 +165,9 @@ fn a_polytone_colormap_tints_by_biome_and_keeps_the_biome_colour_where_transpare
                 .to_vec(),
         ),
     ]);
-    let colormaps = vec![Arc::new(
-        crate::environment::Colormap::load(&root, "mypack:water").unwrap(),
-    )];
+    let colormap = crate::pack_formats::environment::Colormap::load(&root, "mypack:water");
+    let colormaps: Vec<Arc<dyn crate::environment::BlockColormap>> =
+        vec![Arc::new(colormap.unwrap())];
     for (biome, expected) in [(1, 0xFF_0000), (0, 0x3F_76E4)] {
         let chunks: Vec<Vec<Chunk>> = (0..3)
             .map(|rz| (0..3).map(|rx| filled(rx - 1, rz - 1, biome)).collect())
@@ -213,9 +213,9 @@ fn a_biome_colormap_blends_over_a_biome_edge_as_the_vanilla_water_tint_does() {
                 json.into_bytes(),
             ),
         ]);
-        let map = crate::environment::Colormap::load(&root, "mypack:water").unwrap();
+        let map = crate::pack_formats::environment::Colormap::load(&root, "mypack:water").unwrap();
         std::fs::remove_dir_all(root).unwrap();
-        vec![Arc::new(map)]
+        vec![Arc::new(map) as Arc<dyn crate::environment::BlockColormap>]
     };
     let (desert, plains) = (biomes.id("minecraft:desert"), biomes.id("minecraft:plains"));
     // The west neighbours are desert, the section and the rest plains: an edge at x = 0.
@@ -274,12 +274,12 @@ fn biome_colors_and_a_grass_block_colormap_replace_their_whole_biome_function() 
             br#"{"targets": ["minecraft:oak_leaves"], "colormap": "mypack:leaves"}"#.to_vec(),
         ),
     ]);
-    let modifiers = crate::environment::polytone_colormap_modifiers(&root);
-    let functions = biome_functions(&root, &modifiers);
-    let tints: Vec<_> = functions.iter().map(|(t, _)| *t).collect();
-    assert_eq!(tints.len(), 2);
-    assert!(tints[0] == [Tint::Foliage] && tints[1] == [Tint::Water]);
-    let colormaps: Vec<_> = functions.into_iter().map(|(_, c)| Arc::new(c)).collect();
+    let modifiers = crate::pack_formats::environment::colormap_targets(&root);
+    let functions = crate::pack_formats::environment::biome_colormaps(&root, &modifiers);
+    let names: Vec<_> = functions.iter().map(|(f, _)| *f).collect();
+    use crate::environment::BiomeFunction;
+    assert_eq!(names, [BiomeFunction::Foliage, BiomeFunction::Water]);
+    let colormaps: Vec<_> = functions.into_iter().map(|(_, c)| c).collect();
     let chunks: Vec<Vec<Chunk>> = (0..3)
         .map(|rz| (0..3).map(|rx| filled(rx - 1, rz - 1, 0)).collect())
         .collect();
@@ -312,7 +312,7 @@ fn only_a_colormap_that_ignores_the_height_is_shared_up_a_column() {
             br#"{"y_axis": "y_level"}"#.to_vec(),
         ),
     ]);
-    let load = |id| crate::environment::Colormap::load(&root, id).unwrap();
+    let load = |id| crate::pack_formats::environment::Colormap::load(&root, id).unwrap();
     assert!(load("mypack:flat").column);
     assert!(!load("mypack:tall").column);
     std::fs::remove_dir_all(root).unwrap();
@@ -339,8 +339,8 @@ fn colormap_tint_cost() {
                 .to_vec(),
         ),
     ]);
-    let colormaps = vec![Arc::new(
-        crate::environment::Colormap::load(&root, "mypack:grass").unwrap(),
+    let colormaps: Vec<Arc<dyn crate::environment::BlockColormap>> = vec![Arc::new(
+        crate::pack_formats::environment::Colormap::load(&root, "mypack:grass").unwrap(),
     )];
     let chunks: Vec<Vec<Chunk>> = (0..3)
         .map(|rz| (0..3).map(|rx| filled(rx - 1, rz - 1, 0)).collect())
