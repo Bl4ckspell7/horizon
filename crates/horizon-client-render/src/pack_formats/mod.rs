@@ -3,6 +3,8 @@
 //! crate until the platform's executable installs it: it uses only the crate's public API, so it
 //! moves to a platform crate unchanged, and nothing else in the crate names it.
 
+#[cfg(test)]
+mod atlas_tests;
 pub(crate) mod block_entity_cem;
 pub mod cit;
 mod cit_glint;

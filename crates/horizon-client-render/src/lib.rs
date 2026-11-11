@@ -60,6 +60,8 @@ pub mod hud;
 pub mod hud_kit;
 pub mod hud_layout;
 pub mod hud_overlays;
+#[cfg(any(test, feature = "test-support"))]
+pub mod hud_test_support;
 pub mod inventory_effects;
 pub mod java_text;
 mod jei_sprites;
