@@ -16,7 +16,7 @@ mod animate;
 pub mod cit_glint;
 mod pack_text;
 pub mod pictures;
-pub(crate) mod sprite_modifiers;
+pub mod sprite_modifiers;
 
 /// A sprite's atlas region, and its size in GUI pixels: the size of the
 /// default resources' texture of that name, whatever the resolution of the

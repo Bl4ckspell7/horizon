@@ -16,6 +16,7 @@ mod fusion;
 mod item_bars;
 mod pack_options;
 mod post;
+mod sprite_modifiers;
 
 use std::path::Path;
 use std::sync::Arc;
@@ -104,6 +105,14 @@ impl PackFormats for Formats {
                 None
             }
         }
+    }
+
+    fn sprite_modifiers(
+        &self,
+        root: &Path,
+        keys: &mut dyn Iterator<Item = &String>,
+    ) -> Option<crate::hud::sprite_modifiers::SpriteModifiers> {
+        Some(sprite_modifiers::read(root, keys))
     }
 
     fn biome_colormaps(
