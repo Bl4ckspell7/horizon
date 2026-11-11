@@ -529,12 +529,6 @@ pub fn friends_relay_setting() -> Option<String> {
         .filter(|r| !r.is_empty())
         .or_else(|| horizon_hooks::engine::tunnel().and_then(|r| r.relay_from_env()))
 }
-/// Remember the relay typed on Join a friend (empty forgets it).
-pub fn save_friends_relay(relay: &str) {
-    if let Ok(dir) = std::env::current_dir() {
-        crate::ui_theme::set_preference(&dir, "friendsRelay", (!relay.is_empty()).then_some(relay));
-    }
-}
 
 /// Reach the friend's world from the code (directly, or through a relay)
 /// and open the tunnel: the loopback address to connect to, and the token to send on it first.

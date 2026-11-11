@@ -100,60 +100,76 @@ impl Drop for Fixture {
     }
 }
 
+/// The Friends icon opens a page registered at `Place::Title` (horizon-friends' Join a Friend);
+/// these tests stand one in.
+fn with_title_page() -> Fixture {
+    crate::multiplayer::stand_in_title_page(true);
+    Fixture::new()
+}
+
+#[test]
+fn without_a_title_page_the_friends_icon_is_inactive_and_opens_nothing() {
+    crate::multiplayer::stand_in_title_page(false);
+    let mut f = Fixture::new();
+    let icons: Vec<_> = f
+        .title
+        .buttons(480.0, 262.0)
+        .into_iter()
+        .filter(|b| b.icon.is_some())
+        .map(|b| (b.label.clone(), b.enabled, b.x))
+        .collect();
+    // Same place and look as with one, only greyed; Language and Accessibility stay active.
+    let friends = icons.iter().find(|(label, ..)| label == "Friends").unwrap();
+    assert!(!friends.1);
+    assert!(
+        icons
+            .iter()
+            .filter(|(label, ..)| label != "Friends")
+            .all(|(_, on, _)| *on)
+    );
+    assert_eq!(f.click("Friends"), Action::None);
+    assert!(matches!(f.title.mode, Mode::Main));
+    crate::multiplayer::stand_in_title_page(true);
+    let with: Vec<_> = f
+        .title
+        .buttons(480.0, 262.0)
+        .into_iter()
+        .filter(|b| b.icon.is_some())
+        .map(|b| (b.label.clone(), b.x, b.y))
+        .collect();
+    assert_eq!(
+        with.iter()
+            .map(|(l, x, _)| (l.clone(), *x))
+            .collect::<Vec<_>>(),
+        icons
+            .iter()
+            .map(|(l, _, x)| (l.clone(), *x))
+            .collect::<Vec<_>>()
+    );
+    crate::multiplayer::stand_in_title_page(false);
+}
+
 mod multiplayer_parent_navigation {
     use super::*;
-    use crate::multiplayer::{Outcome, Screen};
+    use crate::multiplayer::Screen;
 
     #[test]
     fn friend_cancel_returns_to_title() {
-        let mut f = Fixture::new();
+        let mut f = with_title_page();
         f.click("Friends");
-        assert!(matches!(
-            f.title.mode,
-            Mode::Multiplayer(Screen::Friend { .. })
-        ));
-        assert_eq!(f.click("Cancel"), Action::None);
+        assert!(matches!(f.title.mode, Mode::Multiplayer(Screen::Page(_))));
+        // The form's back button: the page's `gui.cancel`, as the player's language reads it.
+        assert_eq!(f.click(&crate::lang::get("gui.cancel")), Action::None);
         assert!(matches!(f.title.mode, Mode::Main));
     }
 
     #[test]
     fn friend_escape_returns_to_title() {
-        let mut f = Fixture::new();
+        let mut f = with_title_page();
         f.click("Friends");
-        assert!(matches!(
-            f.title.mode,
-            Mode::Multiplayer(Screen::Friend { .. })
-        ));
+        assert!(matches!(f.title.mode, Mode::Multiplayer(Screen::Page(_))));
         f.title.escape();
         assert!(matches!(f.title.mode, Mode::Main));
-    }
-
-    #[test]
-    fn friend_from_server_list_cancel_and_escape_return_to_list() {
-        for escape in [false, true] {
-            let mut f = Fixture::new();
-            f.click("Multiplayer");
-            f.click("Proceed");
-            // The legacy entry has a click handler but no visible button.
-            assert!(matches!(
-                f.title
-                    .multiplayer_click(Some(47), 0.0, 0.0, (480.0, 262.0)),
-                Outcome::None
-            ));
-            assert!(matches!(
-                f.title.mode,
-                Mode::Multiplayer(Screen::Friend { .. })
-            ));
-            if escape {
-                f.title.escape();
-            } else {
-                assert_eq!(f.click("Cancel"), Action::None);
-            }
-            assert!(matches!(
-                f.title.mode,
-                Mode::Multiplayer(Screen::List { .. })
-            ));
-        }
     }
 
     #[test]
@@ -2700,16 +2716,6 @@ fn the_multiplayer_screens_have_their_own_ids() {
         }
         .id(),
         "edit_server"
-    );
-    assert_eq!(
-        M::Friend {
-            from_title: false,
-            code: String::new(),
-            relay: String::new(),
-            focus: 0,
-        }
-        .id(),
-        "friends_join"
     );
     assert_eq!(
         M::Disconnected {
