@@ -2284,7 +2284,7 @@ impl OptionsUi {
     /// The binding the screen waits on: a controller button's, else a key's.
     fn waiting(&self) -> Option<shell::Capture> {
         let pad = self.selected_pad_action.map(shell::Capture::Pad);
-        pad.or(self.selected_key.map(shell::Capture::Key))
+        pad.or_else(|| self.waiting_key())
     }
     /// What a shell screen's outputs do to these options.
     fn shell_events(&mut self, s: &mut Settings, outputs: Vec<shell::Output>) -> Vec<Event> {
@@ -2292,10 +2292,7 @@ impl OptionsUi {
         for output in outputs {
             match output {
                 shell::Output::Event(event) => events.push(event),
-                shell::Output::Bind(shell::Capture::Key(name)) => self.selected_key = Some(name),
-                shell::Output::Bind(shell::Capture::Pad(action)) => {
-                    self.selected_pad_action = Some(action)
-                }
+                shell::Output::Bind(capture) => self.wait_for(capture),
                 shell::Output::Push(page) => {
                     if page == Page::HdrCalibration {
                         self.calibration =
@@ -6546,25 +6543,15 @@ mod tests {
             ui.click(s, &atlas, at.0, at.1, size, [960, 960], false, false)
         };
         assert_eq!(
-            press(&mut ui, &mut s, crate::extras::Item::Sort),
+            press(&mut ui, &mut s, crate::extras::Item::OwnNameTag),
             vec![Event::ButtonClick, Event::Changed]
         );
-        assert!(s.extras.sort);
+        assert!(s.extras.own_name_tag);
         assert_eq!(
             press(&mut ui, &mut s, crate::extras::Item::Pregen),
             vec![Event::ButtonClick, Event::Changed]
         );
         assert!(s.extras.pregen);
-        assert_eq!(
-            press(&mut ui, &mut s, crate::extras::Item::SortKey),
-            vec![Event::ButtonClick]
-        );
-        assert_eq!(ui.selected_key, Some(crate::extras::SORT_KEY));
-        assert_eq!(
-            ui.key(&mut s, &atlas, winit::keyboard::KeyCode::KeyC, None),
-            vec![Event::Changed]
-        );
-        assert_eq!(s.extras.sort_key, "key.keyboard.c");
         assert_eq!(
             crate::extras::Extras::parse(&s.extras.serialize()),
             s.extras
@@ -7245,7 +7232,7 @@ mod tests {
 
     #[test]
     fn extras_and_vanilla_bindings_accept_mouse_buttons() {
-        use crate::extras::{Extras, SORT_KEY};
+        use crate::{extras::Extras, pvp::HUD_EDITOR_KEY};
         use winit::event::MouseButton;
         for button in [
             MouseButton::Left,
@@ -7254,7 +7241,7 @@ mod tests {
             MouseButton::Back,
             MouseButton::Forward,
         ] {
-            for name in [SORT_KEY, "key.jump"] {
+            for name in [HUD_EDITOR_KEY, "key.jump"] {
                 let mut ui = OptionsUi::default();
                 let mut s = Settings::default();
                 ui.selected_key = Some(name);
@@ -7262,7 +7249,7 @@ mod tests {
                 assert_eq!(ui.selected_key, None);
                 let value = keybinds::mouse_name(button);
                 match name {
-                    SORT_KEY => assert_eq!(s.extras.sort_key, value),
+                    HUD_EDITOR_KEY => assert_eq!(s.extras.pvp.editor_key, value),
                     _ => assert_eq!(s.keys.get(name), value),
                 }
                 assert_eq!(Extras::parse(&s.extras.serialize()), s.extras);
@@ -7281,7 +7268,7 @@ mod tests {
         let mut ui = OptionsUi::default();
         ui.show(Page::Extras);
         for (right, expected) in [(false, "key.mouse.left"), (true, "key.mouse.right")] {
-            ui.selected_key = Some(crate::extras::SORT_KEY);
+            ui.selected_key = Some(crate::pvp::HUD_EDITOR_KEY);
             assert_eq!(
                 ui.click(
                     &mut s,
@@ -7295,7 +7282,7 @@ mod tests {
                 ),
                 vec![Event::Changed]
             );
-            assert_eq!(s.extras.sort_key, expected);
+            assert_eq!(s.extras.pvp.editor_key, expected);
             assert_eq!(ui.selected_key, None);
             assert_eq!(ui.page(), Page::Extras);
         }
@@ -7857,18 +7844,18 @@ mod tests {
         let mut s = Settings::default();
         let mut ui = OptionsUi::default();
 
-        // 1. Extras page: with the wheel extra on, the wheel on the Sort switch cycles it
+        // 1. Extras page: with the wheel extra on, the wheel on a switch cycles it
         s.extras.wheel_cycles_settings = true;
         ui.show(Page::Extras);
         let size = (480.0, 600.0);
         let cursor = ui
             .extras
-            .point_at(&s, size, ExtraRow::Item(crate::extras::Item::Sort));
-        assert!(!s.extras.sort);
+            .point_at(&s, size, ExtraRow::Item(crate::extras::Item::OwnNameTag));
+        assert!(!s.extras.own_name_tag);
         ui.wheel(&mut s, size, cursor, [854, 480], 1.0);
-        assert!(s.extras.sort);
+        assert!(s.extras.own_name_tag);
         ui.wheel(&mut s, size, cursor, [854, 480], 1.0);
-        assert!(!s.extras.sort);
+        assert!(!s.extras.own_name_tag);
 
         // 2. Horizon Graphics page through OptionsUi:
         // Tab onto ChunkUpdates slider, ArrowRight adjusts value, Space toggles can_change_value

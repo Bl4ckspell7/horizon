@@ -4,8 +4,8 @@
 //! Each hook does nothing while its extra is off and no mod uses it.
 //!
 //! Each Horizon extra's game glue is a child module here, so it leaves the engine in one move
-//! (docs/layers.md, plan M5): `pvp` (the PvP & HUD options). Auto-reconnect left already
-//! (`horizon-reconnect`).
+//! (docs/layers.md, plan M5): `pvp` (the PvP & HUD options). Auto-reconnect and the inventory
+//! extras left already (`horizon-reconnect`, `horizon-inventory-tweaks`).
 pub(in crate::game) mod pvp;
 
 use super::{Dim, Game, Screen, native_hooks::NativeMinimap};
@@ -217,7 +217,7 @@ impl Game<'_> {
     /// (`Hud.extractEffects`: beneficial at y 1, harmful at y 26).
     fn effect_rows_height(&self) -> f32 {
         let effects = &self.potions.effects.list;
-        if effects.is_empty() || self.screen != Screen::Playing || self.pvp_effects_shown() {
+        if effects.is_empty() || self.screen != Screen::Playing || self.effect_icons_hidden() {
             return 0.0;
         }
         let harmful = effects.iter().any(|e| {
