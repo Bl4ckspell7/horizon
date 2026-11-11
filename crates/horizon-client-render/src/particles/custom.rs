@@ -1,11 +1,90 @@
-//! The extension point for resource pack formats' own particles: the ways a particle quad turns,
-//! and GPU particles (Polytone's, #11486), records a store draws beside the engine's particles,
-//! which the platform's formats provide.
-use super::{Particle, ParticleLightCache};
+//! The extension point for resource pack formats' own particles (Polytone's custom particle types,
+//! block and entity emitters, particle modifiers and GPU particles, #11486), which the platform
+//! fills ([`crate::pack_hooks::PackFormats::custom_particles`]). A custom particle is an ordinary
+//! engine particle with a controller, or a GPU particle: a record its store draws.
+use super::{Particle, ParticleEngine, ParticleLevel, ParticleLightCache, ParticleOptions};
+use crate::environment::Frame;
 use crate::hud::Rect;
 use crate::mesher::Vertex;
 use glam::{DVec3, Mat3, Quat, Vec3 as FVec3};
-use std::collections::HashMap;
+use horizon_core::random::LegacyRandom;
+use std::collections::{BTreeMap, HashMap};
+use std::sync::Arc;
+
+/// What an emitter seeds on the custom particle it spawns: its own `red`... `custom` and customs.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Seed {
+    pub fields: BTreeMap<String, f64>,
+    pub customs: BTreeMap<String, f64>,
+}
+
+/// A particle to spawn: its options, position and velocity.
+pub type Spawn = (ParticleOptions, [f64; 3], [f64; 3]);
+
+/// A sound for the engine's queue: id, position, volume, pitch, delayed by the distance.
+pub type Sound = (&'static str, [f64; 3], f32, f32, bool);
+
+/// A custom particle as it is made.
+pub enum Made {
+    /// An engine particle, with the controller that runs its type.
+    Particle(Particle),
+    /// A GPU particle's spawn: only a record in its type's store, never an engine particle.
+    Gpu(Particle),
+}
+
+/// The packs' custom particle types and emitters, read once per pack load.
+pub trait CustomParticles: Send + Sync {
+    fn is_empty(&self) -> bool;
+    /// Whether `id` (`minecraft:rain`, `ns:spark`) is a custom particle type.
+    fn has_type(&self, id: &str) -> bool;
+    /// Whether any pack modifies vanilla or mod particles.
+    fn modifies_particles(&self) -> bool;
+    /// Runs the modifiers aimed at particle type `id` on a particle that was just made; `source`
+    /// is the block or item its options carry.
+    fn modify(&self, id: &str, source: Option<&str>, particle: &mut Particle);
+    /// Makes a particle of custom type `name`; `None` when its type's limits refuse it.
+    fn make(
+        &self,
+        engine: &ParticleEngine,
+        name: &str,
+        options: &ParticleOptions,
+        position: [f64; 3],
+        velocity: [f64; 3],
+        seed: i64,
+    ) -> Option<Made>;
+    /// The store for GPU particle type `name`'s records.
+    fn gpu_store(&self, name: &str) -> Option<Box<dyn GpuParticles>>;
+    /// The sounds custom particles played since the last call.
+    fn take_sounds(&self) -> Vec<Sound>;
+    /// Whether the packs stop `state`'s own particles (its `Block.animateTick` doesn't run).
+    fn disables_particles(&self, state: horizon_world::registry::BlockStateId) -> bool;
+    /// The particles the emitters aimed at `entity` (its type) standing at `position` spawn.
+    fn entity(
+        &self,
+        level: &ParticleLevel<'_>,
+        entity: &str,
+        position: [f64; 3],
+        camera: [f64; 3],
+        random: &mut LegacyRandom,
+        out: &mut Vec<Spawn>,
+    );
+    /// The particles and sounds the emitters aimed at the block at `at` spawn, from its animate
+    /// tick.
+    fn animate(
+        &self,
+        level: &ParticleLevel<'_>,
+        at: [i32; 3],
+        random: &mut LegacyRandom,
+        out: &mut Vec<Spawn>,
+        sounds: &mut Vec<Sound>,
+    );
+    /// Sets the world's biome table (the world's own, or the default one).
+    fn set_biomes(&self, biomes: &Arc<crate::biome::Biomes>);
+    /// Sets the frame's global, player and camera context the expressions read.
+    fn set_frame(&self, frame: &Frame);
+    /// The frame last set.
+    fn frame(&self) -> Option<Frame>;
+}
 
 /// A GPU particle type's records, drawn beside the engine's own particles.
 pub trait GpuParticles: Send + Sync {
@@ -66,6 +145,113 @@ pub fn orient(mode: Orientation, center: FVec3, velocity: FVec3, roll: f32, came
             }
             Quat::from_mat3(&Mat3::from_cols(right, up, right.cross(up)))
         }
+    }
+}
+
+impl ParticleOptions {
+    /// These options with the block or item they carry (`source`), for particle modifier
+    /// filters.
+    pub fn with_source(mut self, id: &str) -> Self {
+        self.source = Some(Arc::from(id));
+        self
+    }
+}
+
+impl Particle {
+    /// Draws sprite `index` of the engine's sprite table.
+    pub fn set_sprite_index(&mut self, index: u32) {
+        self.sprite = super::Sprite::Index(index);
+    }
+
+    /// Draws the atlas sprite `name`.
+    pub fn set_sprite_named(&mut self, name: String) {
+        self.sprite = super::Sprite::Named(name);
+    }
+
+    /// Lights it with at least block light `level`, a floor under the light where it is.
+    pub fn set_min_block_light(&mut self, level: u8) {
+        self.light = super::Light::MinBlock(level);
+    }
+
+    /// Ticks it with its controller alone; it draws translucent or cut out.
+    pub fn set_controlled(&mut self, translucent: bool) {
+        self.behaviour = super::Behaviour::Controlled { translucent };
+    }
+
+    /// The controller that runs it.
+    pub fn set_controller(&mut self, controller: impl super::ParticleController) {
+        self.controller = Some(Box::new(controller));
+    }
+}
+
+impl ParticleEngine {
+    /// The live and queued particles, for a custom type's `limit` and `exclusion_radius`.
+    pub fn live(&self) -> impl Iterator<Item = &Particle> {
+        self.particles
+            .iter()
+            .chain(&self.pending)
+            .filter(|p| !p.removed)
+    }
+
+    /// The sprite set of particle type `name` and its sprites: a native mod's, or for
+    /// `minecraft:<type>` that vanilla type's.
+    pub fn sprite_set(&self, name: &str) -> Option<(u32, &[u32])> {
+        let set = self.mod_sets.get(name).map(|&(set, _)| set).or_else(|| {
+            let vanilla = name.strip_prefix("minecraft:")?;
+            self.sets
+                .get(&super::ParticleType::from_name(vanilla)?)
+                .copied()
+        })?;
+        let sprites = self
+            .set_sprites
+            .get(set as usize)
+            .map_or(&[][..], Vec::as_slice);
+        Some((set, sprites))
+    }
+
+    /// The emitters of the packs' entity modifiers aimed at `entity` (its type, as
+    /// `minecraft:player`) standing at `position`, run once a client tick.
+    pub fn polytone_entity(&mut self, level: &ParticleLevel<'_>, entity: &str, position: [f64; 3]) {
+        let Some(custom) = self.polytone.clone() else {
+            return;
+        };
+        let mut out = Vec::new();
+        custom.entity(
+            level,
+            entity,
+            position,
+            self.camera,
+            &mut self.random,
+            &mut out,
+        );
+        for (options, position, velocity) in out {
+            self.add(&options, position, velocity);
+        }
+    }
+
+    /// Whether the packs' block modifiers stop `state`'s own particles (`disable_particles`): its
+    /// `Block.animateTick` doesn't run.
+    pub fn polytone_disables_particles(
+        &self,
+        state: horizon_world::registry::BlockStateId,
+    ) -> bool {
+        self.polytone
+            .as_ref()
+            .is_some_and(|c| c.disables_particles(state))
+    }
+
+    /// The block emitters of the packs' block modifiers aimed at the block at `at`, run from a
+    /// block animate tick (`Block.animateTick`, as torches spawn their flames).
+    pub fn polytone_animate(&mut self, level: &ParticleLevel<'_>, at: [i32; 3]) {
+        let Some(custom) = self.polytone.clone() else {
+            return;
+        };
+        let (mut out, mut sounds) = (Vec::new(), Vec::new());
+        custom.animate(level, at, &mut self.random, &mut out, &mut sounds);
+        for (options, position, velocity) in out {
+            self.add(&options, position, velocity);
+        }
+        self.sounds.extend(sounds);
     }
 }
 

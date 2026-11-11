@@ -16,7 +16,8 @@ pub mod environment;
 mod fusion;
 mod item_bars;
 mod pack_options;
-pub(crate) mod particles_gpu;
+mod particles;
+mod particles_gpu;
 mod post;
 mod sprite_modifiers;
 
@@ -119,6 +120,16 @@ impl PackFormats for Formats {
 
     fn creative_tab_modifiers(&self, root: &Path) -> Vec<Box<dyn crate::pack_hooks::TabModifier>> {
         creative_tabs::read(root)
+    }
+
+    fn custom_particles(
+        &self,
+        root: &Path,
+        blocks: &'static horizon_world::registry::BlockRegistry,
+    ) -> Option<Arc<dyn crate::particles::custom::CustomParticles>> {
+        let configs = crate::packs::polytone_configs(&crate::packs::Source::Dir(root.into()));
+        let registry = particles::Registry::read(root, configs, blocks);
+        (!registry.is_empty()).then(|| Arc::new(particles::Particles(Arc::new(registry))) as _)
     }
 
     fn biome_colormaps(
