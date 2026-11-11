@@ -174,6 +174,13 @@ class AllowTests(unittest.TestCase):
         self.assertEqual(len(ns.read_council(text)), len(lines), "every member line is `<id> <login>`")
         self.assertEqual(ns.COUNCIL_IDS, ns.read_council(text))
 
+    def test_the_commands_workflows_fetch_the_council_file(self):
+        # They check out main sparsely: a file left out of the list reads as missing, and the council loses its powers.
+        for name in ("nightly-command", "triage-command", "claim-command"):
+            text = (ROOT / ".github" / "workflows" / f"{name}.yml").read_text()
+            checkout = text[text.index("sparse-checkout: |"):text.index("sparse-checkout-cone-mode")]
+            self.assertIn(ns.COUNCIL, checkout, name)
+
     def test_paused_stops_reviewers_not_ludovic(self):
         reviewers = ns.read_reviewers(self.LIST + "paused  # Ludovic, 2026-10-29\n")
         self.assertTrue(reviewers.paused)
