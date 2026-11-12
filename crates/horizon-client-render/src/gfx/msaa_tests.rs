@@ -37,7 +37,8 @@ fn switching_on_asks_for_its_pipelines_once() {
 
 /// Real raster coverage through terrain.wgsl's `cutout_coverage` and the seed and resolve
 /// passes: HDR light above white, its alpha codes, reverse-Z, a native pack's integer surface,
-/// targets made again at a new size and surface, and the tone-weighted resolve of linear light.
+/// targets made again at a new size and surface, the tone-weighted resolve of linear light, and
+/// the sample an edge pixel keeps.
 /// Without an adapter that multisamples these formats (CI's runners) it returns early.
 #[test]
 fn coverage_resolves_hdr_depth_and_native_surfaces() {
@@ -108,6 +109,8 @@ struct Color {
     let reuse = Reuse::default();
     let kept = reuse.on(&device);
     let mut both = [false, true].map(|linear| Passes::new(&kept, &device, format, linear));
+    // Edge pixels whose resolve kept the sky's sample, and those that kept the geometry's.
+    let mut kept_by = [0; 2];
     // The gamma passes keep their targets from one case to the next: a new size or surface
     // makes them again. Sky 2.0 and terrain 8.0 average to 5.0 as stored, and to 3.5 weighted
     // (2/3 and 8/9, whose mean 7/9 turns back into 3.5).
@@ -284,8 +287,16 @@ struct Color {
                     assert_eq!(depth, if x == 0 { 0.0 } else { 0.75 });
                 } else if color[0] > 2.0 && color[0] < 8.0 {
                     geometric_edges += 1;
-                    assert_eq!(color[3], 0.25);
-                    assert_eq!(depth, 0.5);
+                    // Geometry covering half the pixel or more (its colour at `half` or past
+                    // it) owns its depth and light code, as the pixel centre would; less, the sky
+                    // keeps them, so what draws after the resolve isn't hidden behind the edge.
+                    let geometry = color[0] >= half - 1e-3;
+                    kept_by[usize::from(geometry)] += 1;
+                    assert_eq!(
+                        (color[3], depth),
+                        if geometry { (0.25, 0.5) } else { (1.0, 0.0) },
+                        "edge {x},{y}: {color:?}"
+                    );
                 }
                 if surface {
                     let offset = plane as usize * 2 + (y * stride + x * 16) as usize;
@@ -306,4 +317,8 @@ struct Color {
             "diagonal geometry needs subpixel coverage too"
         );
     }
+    assert!(
+        kept_by.iter().all(|&n| n > 0),
+        "edges kept by each: {kept_by:?}"
+    );
 }
