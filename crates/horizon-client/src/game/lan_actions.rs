@@ -5422,7 +5422,7 @@ impl Game<'_> {
         }
         if self.guest_can_glide(host, conn) != Some(true) {
             if let Some(g) = host.hub.guest_mut(conn) {
-                g.fall_flying = false;
+                g.end_glide();
             }
             return;
         }
